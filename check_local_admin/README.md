@@ -5,6 +5,9 @@ This script runs at startup and syncs the members of AD group in the "Allow Admi
 field with proper local admins on the Mac.  If no network is found, or it can't see AD,
 it leaves everything as is.
 
+If you just want to download the package:
+https://raw.githubusercontent.com/grahampugh/osx-scripts/master/check_local_admin/check-local-admin.pkg
+
 To recompile, first install the Luggage:
 *  `cd`
 *  `git clone https://github.com/unixorn/luggage.git`
@@ -13,7 +16,8 @@ To recompile, first install the Luggage:
 *  `make bootstrap_files` (needs admin rights)
 
 Then, if you haven't already: 
-*  git clone this repo
+*  `cd`
+*  `git clone https://github.com/grahampugh/osx-scripts.git`
 *  `cd check_local_admin`
 *  `make pkg`
 
