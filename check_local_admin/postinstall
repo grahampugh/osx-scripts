@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Move LaunchDaemon into place - this ensures local admin rights are maintained off-network
+launchctl unload /Library/LaunchDaemons/com.grahamrpugh.checklocaladmin.plist
+mv /Library/Management/checklocaladmin/com.grahamrpugh.checklocaladmin.plist /Library/LaunchDaemons/
+launchctl load /Library/LaunchDaemons/com.grahamrpugh.checklocaladmin.plist
+
