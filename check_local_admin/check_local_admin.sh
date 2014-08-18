@@ -26,7 +26,7 @@ log() {
 }
 
 # Find the computer's hostname.
-readonly HOSTNAME=$( scutil --get ComputerName );
+readonly HOSTNAME=$( scutil --get LocalHostName );
 echo "### Local Administrator Check:"
 echo "Host Name        = $HOSTNAME"
 

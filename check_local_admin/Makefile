@@ -1,6 +1,6 @@
 USE_PKGBUILD=1
 include /usr/local/share/luggage/luggage.make
-# PB_EXTRA_ARGS+= --sign "Graham Pugh"
+PB_EXTRA_ARGS+= --sign "Graham Pugh"
 PB_EXTRA_ARGS+= --info "./PackageInfo"
 
 TITLE=check-local-admin
