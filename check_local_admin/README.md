@@ -2,10 +2,16 @@ Check Local Admin
 ==========
 
 This script runs at startup and syncs the members of AD group in the "Allow Administration By"
-field with proper local admins on the Mac.  If no network is found, or it can't see AD,
-it leaves everything as is.
+field with proper local admins on the Mac. 
 
-If you just want to download the package:
+This means that the members of the AD group
+specified in "Allow Administration By" can still do admin and sudo tasks offline, which isn't
+the case otherwise.
+
+If no network is found, or it can't see AD, it leaves everything as is.
+
+If you just want to download the package click here:
+
 https://raw.githubusercontent.com/grahampugh/osx-scripts/master/check_local_admin/check-local-admin.pkg
 
 To recompile, first install the Luggage:
