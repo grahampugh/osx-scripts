@@ -7,7 +7,7 @@ See below and LICENSE file for licensing details.
 
 ## Why Munki Enroll?
 
-My organization has a very homogenous environment consisting of several identical deployments. We deploy machines with a basic manifest, like "room_28". This works wonderfully, until computer three in room 28 needs a special piece of software.
+My organization has a very homogenous environment consisting of several identical deployments. We deploy machines with a basic manifest, like "_cg_ru" ("Client Group: Regular Users"). This works wonderfully, until computer three in room 28 needs a special piece of software.
 
 Munki Enroll allows us this flexibility. A computer is deployed with a generic manifest, and Munki Enroll changes the manifest to a specific manifest. The new specific manifest contains the generic manifest as an included_manifests key, allowing us to easily target the whole lab and each individual computer.
 
