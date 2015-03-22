@@ -26,7 +26,7 @@ log() {
 }
 
 # Find the computer's hostname.
-readonly HOSTNAME=$( scutil --get LocalHostName );
+readonly HOSTNAME=$( scutil --get ComputerName );
 echo "### Local Administrator Check:"
 echo "Host Name        = $HOSTNAME"
 
@@ -100,7 +100,7 @@ if [ "$domainCheck" -eq 0 ]; then
 	exit 0
 fi
 
-# OK, let's carry on, as we are connected: 
+# OK, let's carry one, as we are connected: 
 
 # Find all the users on this computer. Ignore system users.
 dscl . list /Users | grep -v '^_.*\|daemon\|root\|nobody' | while read localUser
@@ -124,10 +124,12 @@ do
 		# Is this a Mobile user (not a local account)?
 		if [[ "$ADGroups" =~ "${NetBIOSNameArray[$c]}" ]]; then
 			# Is this mobile user in the correct AD local admin group?
+			shopt -s nocasematch
 			if [[ "$ADGroups" =~ "${ADGroupArray[$c]}" ]]; then
 				log "### User $localUser is member of AD group ${CombinedADGroupArray[$c]}"
 				setLocalAdmin="Yes"
 			fi
+			shopt -u nocasematch
 		else
 			setLocalAdmin="NotAD"
 		fi
@@ -135,6 +137,7 @@ do
 	if [[ "$setLocalAdmin" = "NotAD" ]]; then
 		log "### User $localUser is not an AD user. Nothing to change."
 	elif [[ "$setLocalAdmin" = "Yes" ]]; then
+		log "### Adding $localUser to the Admin group" 
 		/usr/sbin/dseditgroup -o edit -a $localUser -t user admin
 	else
 		log "### User $localUser is not a member of any AD groups. Setting as standard user"
@@ -145,4 +148,6 @@ done
 echo ""
 
 exit 0
+
+
 
