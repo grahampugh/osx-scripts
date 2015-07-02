@@ -1,0 +1,116 @@
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>_metadata</key>
+    <dict>
+        <key>created_by</key>
+        <string>glgrp</string>
+        <key>creation_date</key>
+        <date>2015-07-01T13:56:28Z</date>
+        <key>munki_version</key>
+        <string>2.2.4.2431</string>
+        <key>os_version</key>
+        <string>10.10.4</string>
+    </dict>
+    <key>autoremove</key>
+    <false/>
+    <key>catalogs</key>
+    <array>
+        <string>testing</string>
+    </array>
+    <key>category</key>
+    <string>Programming</string>
+    <key>description</key>
+    <string>Installs the network-licensed version of Matlab R2015a (not for standalone users).</string>
+    <key>developer</key>
+    <string>MathWorks</string>
+    <key>display_name</key>
+    <string>Matlab R2015a</string>
+    <key>icon_name</key>
+    <string>MATLAB_R2014a.png</string>
+    <key>installer_item_location</key>
+    <string>Matlab-R2015a-installer-files.dmg</string>
+    <key>installer_type</key>
+    <string>copy_from_dmg</string>
+    <key>installs</key>
+    <array>
+        <dict>
+            <key>CFBundleIdentifier</key>
+            <string>com.mathworks.matlab</string>
+            <key>CFBundleVersion</key>
+            <string>8.5.0</string>
+            <key>minosversion</key>
+            <string>10.7</string>
+            <key>path</key>
+            <string>/Applications/MATLAB_R2015a.app</string>
+            <key>type</key>
+            <string>application</string>
+            <key>version_comparison_key</key>
+            <string>CFBundleVersion</string>
+            <key>minimum_update_version</key>
+            <string>8.5.0</string>
+        </dict>
+    </array>
+    <key>items_to_copy</key>
+    <array>
+        <dict>
+            <key>destination_path</key>
+            <string>/tmp</string>
+            <key>group</key>
+            <string>admin</string>
+            <key>mode</key>
+            <string>go-w</string>
+            <key>source_item</key>
+            <string>R2015a-maci64.iso</string>
+            <key>user</key>
+            <string>root</string>
+        </dict>
+        <dict>
+            <key>destination_path</key>
+            <string>/tmp</string>
+            <key>group</key>
+            <string>admin</string>
+            <key>mode</key>
+            <string>go-w</string>
+            <key>source_item</key>
+            <string>installer_input.txt</string>
+            <key>user</key>
+            <string>root</string>
+        </dict>
+        <dict>
+            <key>destination_path</key>
+            <string>/tmp</string>
+            <key>group</key>
+            <string>admin</string>
+            <key>mode</key>
+            <string>go-w</string>
+            <key>source_item</key>
+            <string>network.lic</string>
+            <key>user</key>
+            <string>root</string>
+        </dict>
+    </array>
+    <key>name</key>
+    <string>MATLAB_R2015a</string>
+    <key>postinstall_script</key>
+    <string>#!/bin/bash
+## mount the volume created by Matlab
+/usr/bin/hdiutil mount /tmp/R2015a-maci64.iso
+## run the installer
+/Volumes/MATHWORKS_R2015a/install -inputFile /tmp/installer_input.txt
+## unmount
+/usr/bin/hdiutil unmount -force /Volumes/MATHWORKS_R2015a
+## remove tmp files
+/bin/rm -f /tmp/R2015a-maci64.iso /tmp/installer_input.txt /tmp/network.lic
+exit 0</string>
+    <key>uninstall_method</key>
+    <string>uninstall_script</string>
+    <key>uninstall_script</key>
+    <string>#!/bin/sh
+/bin/rm -rf /Applications/MATLAB_R2015a.app</string>
+    <key>uninstallable</key>
+    <true/>
+    <key>version</key>
+    <string>8.5.0</string>
+</dict>
+</plist>
