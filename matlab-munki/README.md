@@ -4,8 +4,11 @@ MATLAB Munki Importer
 This is for network licensed Matlab, but you can further edit the `installer_input.txt` 
 to suit standalone licenses. You wouldn't need a `network.lic` file in that case.
 
-1. Clone this directory
-2. Copy your latest MATLAB installer ISO into this folder. In this case it is `R2015a-maci64.iso`
+See [Install Noninteractively (Silent Installation)](http://uk.mathworks.com/help/install/ug/install-noninteractively-silent-installation.html) 
+for more information on Matlab silent installation.
+
+1. Clone this repo: `git clone https://github.com/grahampugh/osx-scripts.git; cd osx-scripts/matlab-munki`
+2. Copy/move your latest MATLAB installer ISO into this folder. In this case it is `R2015a-maci64.iso`
 3. Edit `installer_input.txt`: enter your File Installation Key
 4. Edit or swap out your own `network.lic`
 5. `chmod +x make-matlab-dmg.sh`
