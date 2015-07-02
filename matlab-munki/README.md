@@ -14,4 +14,5 @@ to suit standalone licenses. You wouldn't need a `network.lic` file in that case
 7. `cp Matlab-R2015a-installer-files.dmg /path/to/munki\_repo/pkgs/apps/matlab/`
 8. `chmod 744 /path/to/munki\_repo/pkgs/apps/matlab/Matlab-R2015a-installer-files.dmg`
 9. `cp MATLAB-R2015a-8.5.0.plist /path/to/munki\_repo/pkgsinfo/apps/matlab/MATLAB-R2015a-8.5.0.plist`
-10. `makecatalogs`
+10. `chmod 644 /path/to/munki\_repo/pkgsinfo/apps/matlab/MATLAB-R2015a-8.5.0.plist`
+11. `makecatalogs`
