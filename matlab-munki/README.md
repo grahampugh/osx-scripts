@@ -8,8 +8,9 @@ See [Install Noninteractively (Silent Installation)](http://uk.mathworks.com/hel
 for more information on Matlab silent installation.
 
 1. Clone this repo: `git clone https://github.com/grahampugh/osx-scripts.git; cd osx-scripts/matlab-munki`
-2. Copy/move your latest MATLAB installer ISO into this folder. In this case it is `R2015a-maci64.iso`
-3. Edit `installer_input.txt`: enter your File Installation Key
+or just copy `make-matlab-dmg.sh` into a new directory.
+2. Copy/move your latest MATLAB installer ISO into this directory. In this case it is `R2015a-maci64.iso`
+3. Edit or swap out your own `installer_input.txt` - enter your File Installation Key
 4. Edit or swap out your own `network.lic`
 5. `chmod +x make-matlab-dmg.sh`
 6. Edit `make-matlab-dmg.sh` if your installer ISO is not `R2015a-maci64.iso`
