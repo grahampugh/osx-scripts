@@ -1,17 +1,17 @@
 MATLAB Munki Importer
 =====================
 
-This is for network licensed Matlab, but you can further edit the installer_input.txt 
-to suit standalone licenses. You wouldn't need a network.lic file in that case.
+This is for network licensed Matlab, but you can further edit the `installer_input.txt` 
+to suit standalone licenses. You wouldn't need a `network.lic` file in that case.
 
 1. Clone this directory
-2. Copy your latest MATLAB installer ISO into this folder
-3. Edit {{installer_input.txt}}: enter your File Installation Key
-4. Edit or swap out your own {{network.lic}}
-5. {{chmod +x make-matlab-dmg.sh}}
-6. Edit {{make-matlab-dmg.sh}} if your installer ISO is not {{R2015a-maci64.iso}}
-6. {{./make-matlab-dmg.sh}}
-7. {{cp Matlab-R2015a-installer-files.dmg /path/to/munki\_repo/pkgs/apps/matlab/}}
-8. {{chmod 744 /path/to/munki\_repo/pkgs/apps/matlab/Matlab-R2015a-installer-files.dmg}}
-9. {{cp MATLAB-R2015a-8.5.0.plist /path/to/munki\_repo/pkgsinfo/apps/matlab/MATLAB-R2015a-8.5.0.plist}}
-10. {{makecatalogs}}
+2. Copy your latest MATLAB installer ISO into this folder. In this case it is `R2015a-maci64.iso`
+3. Edit `installer_input.txt`: enter your File Installation Key
+4. Edit or swap out your own `network.lic`
+5. `chmod +x make-matlab-dmg.sh`
+6. Edit `make-matlab-dmg.sh` if your installer ISO is not `R2015a-maci64.iso`
+6. `./make-matlab-dmg.sh`
+7. `cp Matlab-R2015a-installer-files.dmg /path/to/munki\_repo/pkgs/apps/matlab/`
+8. `chmod 744 /path/to/munki\_repo/pkgs/apps/matlab/Matlab-R2015a-installer-files.dmg`
+9. `cp MATLAB-R2015a-8.5.0.plist /path/to/munki\_repo/pkgsinfo/apps/matlab/MATLAB-R2015a-8.5.0.plist`
+10. `makecatalogs`
