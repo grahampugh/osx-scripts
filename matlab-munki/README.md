@@ -18,4 +18,5 @@ for more information on Matlab silent installation.
 8. `chmod 744 /path/to/munki_repo/pkgs/apps/matlab/Matlab-R2015a-installer-files.dmg`
 9. `cp MATLAB-R2015a-8.5.0.plist /path/to/munki_repo/pkgsinfo/apps/matlab/MATLAB-R2015a-8.5.0.plist`
 10. `chmod 644 /path/to/munki_repo/pkgsinfo/apps/matlab/MATLAB-R2015a-8.5.0.plist`
-11. `makecatalogs`
+11. Edit `MATLAB-R2015a-8.5.0.plist` if you are using a different ISO, and/or to add your own metadata.
+12. `makecatalogs`
