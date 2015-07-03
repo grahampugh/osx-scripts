@@ -1,4 +1,4 @@
-MATLAB Munki Importer
+MATLAB Munki import method
 =====================
 
 This is for network licensed Matlab, but you can further edit the `installer_input.txt` 
