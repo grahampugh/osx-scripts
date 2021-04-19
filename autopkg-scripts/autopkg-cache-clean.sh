@@ -51,7 +51,8 @@ pkgs_deleted=0
 downloads_deleted=0
 
 # iterate through folders in the cache
-find "$RECIPE_CACHE_DIR" -type d -maxdepth 1 > "$temp_file"
+cache_base=$(basename "$RECIPE_CACHE_DIR")
+find "$RECIPE_CACHE_DIR" -type d -maxdepth 1 ! -name "$cache_base" > "$temp_file"
 while IFS= read -r folder; do
     (( count++ ))
     base=$(basename "$folder")
