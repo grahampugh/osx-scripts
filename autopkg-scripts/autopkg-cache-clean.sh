@@ -16,6 +16,7 @@ RECIPE_CACHE_DIR="${HOME}/Library/AutoPkg/Cache"
 usage() {
     echo "Usage: ./autopkg-cache-clean.sh [--downloads X] [--pkgs Y] [--RECIPE_CACHE_DIR /path/to/Cache]"
     echo "Default number of packages and files in downloads folder is 2"
+    echo "Minimum number of packages and files in downloads folder that can be specified is 1"
 }
 
 
@@ -30,11 +31,17 @@ while test $# -gt 0; do
             # specify the number of packages to be kept in the root folder of the cache folder
             shift
             keep_pkgs="$1"
+            if [[ $keep_pkgs -lt 1 ]]; then
+                keep_pkgs=1
+            fi
             ;;
         -d|--downloads)
             # specify the number of files to be kept in the downloads folder of the cache folder
             shift
             keep_downloads="$1"
+            if [[ $keep_downloads -lt 1 ]]; then
+                keep_downloads=1
+            fi
             ;;
         --RECIPE_CACHE_DIR)
             # RECIPE_CACHE_DIR can be supplied. Defaults to ${HOME}/Library/AutoPkg/Cache"
@@ -86,7 +93,7 @@ while IFS= read -r folder; do
         downloads_deleted=$(( downloads_deleted + tail_value ))
         echo
         echo "Folder: $base/downloads"
-        find "$folder/downloads" -name "*.*" -maxdepth 1 -exec ls -dt {} + | tail -n $tail_value | while read -r old_file; do
+        find "$folder/downloads" -name "*.*" -maxdepth 1 -exec ls -dt {} + 2>/dev/null | tail -n $tail_value | while read -r old_file; do
             echo "Deleting $old_file"
             if [[ -d "$old_file" ]]; then
                 rm -rf "$old_file"
