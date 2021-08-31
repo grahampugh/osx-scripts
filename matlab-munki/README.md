@@ -1,6 +1,8 @@
 MATLAB Munki import method
 =====================
 
+**NOTE: This has not been looked at since 2015 and may not work anymore**
+
 This is for network licensed Matlab, but you can further edit the `installer_input.txt` 
 to suit standalone licenses. You wouldn't need a `network.lic` file in that case.
 
