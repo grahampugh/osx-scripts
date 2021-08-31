@@ -27,6 +27,11 @@ usage() {
 
 make_override() {
     recipe_name="$1"
+    # skip any blank lines
+    if [[ ! "$recipe_name" ]]; then
+        return
+    fi
+
     echo
     echo "   ---"
     echo "   Recipe to Override: '${recipe_name}'"
@@ -39,27 +44,25 @@ make_override() {
     # check if there is already an override
     echo "   Checking for existing override in ${RECIPE_OVERRIDE_DIR}..."
     # look for an existing recipe in the overrides first, unless using --force option
-    if [[ -f "${RECIPE_OVERRIDE_DIR}/${recipe_name}.recipe" || -f "${RECIPE_OVERRIDE_DIR}/${recipe_name}.recipe.plist" || -f "${RECIPE_OVERRIDE_DIR}/${recipe_name}.recipe.yaml" ]]; then
-        if [[ $force_new_override -eq 1 ]]; then
-            echo "   Forcing new override for recipe ${recipe_name}..."
-            echo "   WARNING! Any local changes to the override will be lost."
-            echo
-            ${AUTOPKG} make-override "${recipe_name}" --force --prefs "$AUTOPKG_PREFS" --override-dir="${RECIPE_OVERRIDE_DIR}" --format="$recipe_format" $pull
-        else
-            if ! ${AUTOPKG} verify-trust-info "${recipe_name}" --prefs "$AUTOPKG_PREFS" --override-dir="${RECIPE_OVERRIDE_DIR}" -vv; then
-                if [[ $verify_only -ne 1 ]]; then
-                    echo
-                    echo "   Updating trust info for recipe ${recipe_name}..."
-                    echo
-                    ${AUTOPKG} update-trust-info "${recipe_name}" --prefs "$AUTOPKG_PREFS" --override-dir="${RECIPE_OVERRIDE_DIR}"
-                else
-                    echo
-                    echo "   Recipe ${recipe_name} not trusted."
-                fi
+    if [[ $force_new_override -eq 1 ]]; then
+        echo "   Forcing new override for recipe ${recipe_name}..."
+        echo "   WARNING! Any local changes to the override will be lost."
+        echo
+        ${AUTOPKG} make-override "${recipe_name}" --force --prefs "$AUTOPKG_PREFS" --override-dir="${RECIPE_OVERRIDE_DIR}" --format="$recipe_format" $pull
+    else
+        if ! ${AUTOPKG} verify-trust-info "${recipe_name}" --prefs "$AUTOPKG_PREFS" --override-dir="${RECIPE_OVERRIDE_DIR}" -vv; then
+            if [[ $verify_only -ne 1 ]]; then
+                echo
+                echo "   Updating trust info for recipe ${recipe_name}..."
+                echo
+                ${AUTOPKG} update-trust-info "${recipe_name}" --prefs "$AUTOPKG_PREFS" --override-dir="${RECIPE_OVERRIDE_DIR}"
             else
                 echo
-                echo "    Recipe ${recipe_name} is already trusted, so nothing to do."
+                echo "   Recipe ${recipe_name} not trusted."
             fi
+        else
+            echo
+            echo "    Recipe ${recipe_name} is already trusted, so nothing to do."
         fi
     fi
 }
