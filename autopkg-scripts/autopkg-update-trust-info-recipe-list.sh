@@ -16,6 +16,7 @@ usage() {
     echo "   To add a new repo, use 'autopkg repo-add <REPO-NAME>'"
     echo
     echo "   Notes:"
+    echo "    - use '-v[v]' for verbosity of the verify-trust-info output"
     echo "    - use '--verify-only' to for a new override rather than update-trust-info"
     echo "    - use '--force' to for a new override rather than update-trust-info"
     echo "    - use '--format plist' to specify a plist format override (default is yaml)"
@@ -50,7 +51,7 @@ make_override() {
         echo
         ${AUTOPKG} make-override "${recipe_name}" --force --prefs "$AUTOPKG_PREFS" --override-dir="${RECIPE_OVERRIDE_DIR}" --format="$recipe_format" $pull
     else
-        if ! ${AUTOPKG} verify-trust-info "${recipe_name}" --prefs "$AUTOPKG_PREFS" --override-dir="${RECIPE_OVERRIDE_DIR}" -vv; then
+        if ! ${AUTOPKG} verify-trust-info "${recipe_name}" --prefs "$AUTOPKG_PREFS" --override-dir="${RECIPE_OVERRIDE_DIR}" $verbosity; then
             if [[ $verify_only -ne 1 ]]; then
                 echo
                 echo "   Updating trust info for recipe ${recipe_name}..."
@@ -75,6 +76,7 @@ inputted_list=""
 recipe_format="yaml"
 pull_parents=0
 verify_only=0
+verbosity=""
 RECIPE_OVERRIDE_DIR="${HOME}/Library/AutoPkg/RecipeOverrides"
 AUTOPKG="/usr/local/bin/autopkg"
 AUTOPKG_PREFS="$HOME/Library/Preferences/com.github.autopkg.plist"
@@ -108,6 +110,12 @@ do
         --format) 
             shift
             recipe_format="$1"
+            ;;
+        -v) 
+            verbosity="-v"
+            ;;
+        -vv*) 
+            verbosity="-vv"
             ;;
         -h|--help|-*)
             usage
