@@ -14,19 +14,17 @@ RECIPE_CACHE_DIR="${HOME}/Library/AutoPkg/Cache"
 
 # functions
 usage() {
-    echo "Usage: ./autopkg-cache-clean.sh [--downloads X] [--pkgs Y] [--RECIPE_CACHE_DIR /path/to/Cache]"
-    echo "Default number of packages and files in downloads folder is 2"
-    echo "Minimum number of packages and files in downloads folder that can be specified is 1"
+    echo "   Usage: ./autopkg-cache-clean.sh [--downloads X] [--pkgs Y] [--RECIPE_CACHE_DIR /path/to/Cache]"
+    echo "   Default number of packages and files in downloads folder is 2"
+    echo "   Minimum number of packages and files in downloads folder that can be specified is 1"
 }
 
+echo
+echo " # AutoPkg Cache Cleaner by Graham Pugh"
 
 # grab inputs
 while test $# -gt 0; do
     case "$1" in
-        -h|--help)
-            usage
-            exit
-            ;;
         -p|--pkgs)
             # specify the number of packages to be kept in the root folder of the cache folder
             shift
@@ -47,6 +45,10 @@ while test $# -gt 0; do
             # RECIPE_CACHE_DIR can be supplied. Defaults to ${HOME}/Library/AutoPkg/Cache"
             shift
             RECIPE_CACHE_DIR="$1"
+            ;;
+        -h|--help|-*)
+            usage
+            exit
             ;;
     esac
     shift
@@ -107,6 +109,7 @@ done < "$temp_file"
 rm "$temp_file"
 
 echo
-echo "Total $count folders parsed"
-echo "Total $pkgs_deleted pkgs deleted"
-echo "Total $downloads_deleted downloads deleted"
+echo "   Total $count folders parsed"
+echo "   Total $pkgs_deleted pkgs deleted"
+echo "   Total $downloads_deleted downloads deleted"
+echo

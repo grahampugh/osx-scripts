@@ -8,14 +8,15 @@
 
 usage() {
     echo
-    echo "Usage:"
-    echo "./autopkg-update-trust-info.sh '<RECIPE-LIST>'"
+    echo "   Usage:"
+    echo "   ./autopkg-update-trust-info-recipe-list.sh '<RECIPE-LIST>'"
     echo
-    echo "    Tip: use 'autopkg search product.jamf' to find out whether a jamf recipe exists."
-    echo "    If a recipe exists, check that the repo is already added using 'autopkg repo-list'"
-    echo "    To add a new repo, use 'autopkg repo-add <REPO-NAME>'"
+    echo "   Tip: use 'autopkg search product.jamf' to find out whether a jamf recipe exists."
+    echo "   If a recipe exists, check that the repo is already added using 'autopkg repo-list'"
+    echo "   To add a new repo, use 'autopkg repo-add <REPO-NAME>'"
     echo
-    echo "    Notes:"
+    echo "   Notes:"
+    echo "    - use '--verify-only' to for a new override rather than update-trust-info"
     echo "    - use '--force' to for a new override rather than update-trust-info"
     echo "    - use '--format plist' to specify a plist format override (default is yaml)"
     echo "    - use '--pull' to add any missing parent repos to your repos"
@@ -27,8 +28,8 @@ usage() {
 make_override() {
     recipe_name="$1"
     echo
-    echo "---"
-    echo "Recipe to Override: '${recipe_name}'"
+    echo "   ---"
+    echo "   Recipe to Override: '${recipe_name}'"
 
     pull=""
     if [[ $pull_parents -eq 1 ]]; then
@@ -36,30 +37,30 @@ make_override() {
     fi
 
     # check if there is already an override
-    echo "Checking for ${RECIPE_OVERRIDE_DIR}/${recipe_name}.*"
+    echo "   Checking for existing override in ${RECIPE_OVERRIDE_DIR}..."
     # look for an existing recipe in the overrides first, unless using --force option
     if [[ -f "${RECIPE_OVERRIDE_DIR}/${recipe_name}.recipe" || -f "${RECIPE_OVERRIDE_DIR}/${recipe_name}.recipe.plist" || -f "${RECIPE_OVERRIDE_DIR}/${recipe_name}.recipe.yaml" ]]; then
-        if [[ $force_new_override != 1 ]]; then
-            if ! ${AUTOPKG} verify-trust-info "${recipe_name}" --prefs "$AUTOPKG_PREFS" --override-dir="${RECIPE_OVERRIDE_DIR}" -vv; then
-                echo
-                echo "Updating trust info for ${recipe_name}..."
-                echo
-                ${AUTOPKG} update-trust-info "${recipe_name}" --prefs "$AUTOPKG_PREFS" --override-dir="${RECIPE_OVERRIDE_DIR}"
-            else
-                echo
-                echo "${recipe_name} is already trusted, so nothing to do."
-            fi
-        else
-            echo "Forcing new override for ${recipe_name}..."
-            echo "WARNING! Any local changes to the override will be lost."
+        if [[ $force_new_override -eq 1 ]]; then
+            echo "   Forcing new override for recipe ${recipe_name}..."
+            echo "   WARNING! Any local changes to the override will be lost."
             echo
             ${AUTOPKG} make-override "${recipe_name}" --force --prefs "$AUTOPKG_PREFS" --override-dir="${RECIPE_OVERRIDE_DIR}" --format="$recipe_format" $pull
+        else
+            if ! ${AUTOPKG} verify-trust-info "${recipe_name}" --prefs "$AUTOPKG_PREFS" --override-dir="${RECIPE_OVERRIDE_DIR}" -vv; then
+                if [[ $verify_only -ne 1 ]]; then
+                    echo
+                    echo "   Updating trust info for recipe ${recipe_name}..."
+                    echo
+                    ${AUTOPKG} update-trust-info "${recipe_name}" --prefs "$AUTOPKG_PREFS" --override-dir="${RECIPE_OVERRIDE_DIR}"
+                else
+                    echo
+                    echo "   Recipe ${recipe_name} not trusted."
+                fi
+            else
+                echo
+                echo "    Recipe ${recipe_name} is already trusted, so nothing to do."
+            fi
         fi
-    else
-        # use the recipe Identifier to ensure the correct parent recipe (thanks Greg Neagle)
-        echo "No existing override found. Making override for ${recipe_name}..."
-        echo
-        ${AUTOPKG} make-override "${recipe_name}" --prefs "$AUTOPKG_PREFS" --format="$recipe_format" $pull
     fi
 }
 
@@ -70,9 +71,14 @@ make_override() {
 inputted_list=""
 recipe_format="yaml"
 pull_parents=0
+verify_only=0
 RECIPE_OVERRIDE_DIR="${HOME}/Library/AutoPkg/RecipeOverrides"
 AUTOPKG="/usr/local/bin/autopkg"
 AUTOPKG_PREFS="$HOME/Library/Preferences/com.github.autopkg.plist"
+
+echo
+echo " # AutoPkg update-trust-info for recipe lists, by Graham Pugh"
+echo 
 
 # grab inputs
 while test $# -gt 0
@@ -93,6 +99,9 @@ do
         --pull) 
             pull_parents=1
             ;;
+        --verify-only) 
+            verify_only=1
+            ;;
         --format) 
             shift
             recipe_format="$1"
@@ -108,23 +117,28 @@ do
     shift
 done
 
+# reset force if verify-only chosen
+if [[ $verify_only -eq 1 ]]; then
+    force_new_override=0
+fi
+
 # check that the prefs file exists
-echo "AutoPkg prefs file: $AUTOPKG_PREFS"
+echo "   AutoPkg prefs file: $AUTOPKG_PREFS"
 if [[ ! -f "$AUTOPKG_PREFS" ]]; then
-    echo "ERROR: Specified preferences file does not exist!"
+    echo "   ERROR: Specified preferences file does not exist!"
     exit 1
 fi
 
 # check that the overrides path exists
-echo "RecipeOverrides directory: $RECIPE_OVERRIDE_DIR"
+echo "   RecipeOverrides directory: $RECIPE_OVERRIDE_DIR"
 if [[ ! -d "$RECIPE_OVERRIDE_DIR" ]]; then
-    echo "ERROR: Specified RecipeOverrides directory does not exist!"
+    echo "   ERROR: Specified RecipeOverrides directory does not exist!"
     exit 2
 fi
 
 # check recipe format validity
 if [[ "$recipe_format" != "yaml" && "$recipe_format" != "plist" ]]; then
-    echo "WARNING: invalid recipe override format specified. Using 'yaml'."
+    echo "   WARNING: invalid recipe override format specified. Using 'yaml'."
     recipe_format="yaml"
 fi
 
@@ -135,7 +149,7 @@ if [[ -f "$inputted_list" ]]; then
         make_override "$inputted_jamf_recipe"
     done < "${inputted_list}"
 else
-    echo "ERROR: no recipe list specified."
+    echo "   ERROR: no recipe list specified."
     usage
     exit 3
 fi
