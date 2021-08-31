@@ -1,6 +1,8 @@
 Check Local Admin
 ==========
 
+**NOTE: This has not been looked at since 2015 and may not work anymore**
+
 This script runs at startup and syncs the members of AD group in the "Allow Administration By"
 field with proper local admins on the Mac. 
 
