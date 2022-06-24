@@ -4,7 +4,8 @@
 ### by Graham Pugh
 
 # This script can be packaged with Munki to automatically point your client to your
-# Munki server, set defaults such as the Client Identifier, whether to install Apple Updates
+# Munki server, set defaults such as the Client Identifier, whether to install Apple Updates.
+# This was originally designed for DeployStudio but should work with any MDM deployment of the package too.
 #
 # This particular script looks for a Local Host Name in the form ITxxxxxx, e.g. IT012345
 # - change the "ITTAGCHECK" to suit your naming pattern.
@@ -33,13 +34,12 @@ defaults write /Library/Preferences/ManagedInstalls InstallAppleSoftwareUpdates 
 touch /Users/Shared/.com.googlecode.munki.checkandinstallatstartup
 
 # Figures out the computer's local host name - don't use ComputerName as this may contain bad characters
-LOCALHOSTNAME=$( scutil --get LocalHostName );
+LOCALHOSTNAME=$( scutil --get LocalHostName )
 
-# Checks whether it is a valid IT tag - you can choose your own naming scheme
-ITTAGCHECK=`echo $LOCALHOSTNAME | grep -iE '\<IT[0-9]{6}\>'`
-if [ $? -ne 0 ]; then
+# Checks whether it is a valid IT tag - you can choose your own naming scheme by adapting the grep parameter
+if ! echo "$LOCALHOSTNAME" | grep -iE '\<IT[0-9]{6}\>' ; then
 	# Sets the LocalHostName to the serial number if we don't have an IT tag name
-	SERIAL=`/usr/sbin/system_profiler SPHardwareDataType | /usr/bin/awk '/Serial\ Number\ \(system\)/ {print $NF}'`
+	SERIAL=$(/usr/sbin/system_profiler SPHardwareDataType | /usr/bin/awk '/Serial\ Number\ \(system\)/ {print $NF}')
 	scutil --set LocalHostName "$SERIAL"
 	LOCALHOSTNAME="$SERIAL"
 fi
