@@ -17,8 +17,8 @@ usage() {
     echo
     echo "   Notes:"
     echo "    - use '-v[v]' for verbosity of the verify-trust-info output"
-    echo "    - use '--verify-only' to for a new override rather than update-trust-info"
-    echo "    - use '--force' to for a new override rather than update-trust-info"
+    echo "    - use '--verify-only' to only verify the recipe, not update it"
+    echo "    - use '--force' to force a new override rather than update the existing override with update-trust-info"
     echo "    - use '--format plist' to specify a plist format override (default is yaml)"
     echo "    - use '--pull' to add any missing parent repos to your repos"
     echo "    - use '--prefs' to point to a different autopkg preferences file"
