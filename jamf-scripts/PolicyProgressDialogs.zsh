@@ -8,7 +8,7 @@ if [[ -z $icon ]]; then
 fi
 
 # Location of swiftDialog progress script
-progress_script_location="/Library/Management/ETHZ/Progress"
+progress_script_location="/Library/Management/swiftDialog"
 lock_file="/var/tmp/lock.txt"
 
 # make sure the demotion script location exists
