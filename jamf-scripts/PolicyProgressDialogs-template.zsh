@@ -1,8 +1,8 @@
 #!/bin/zsh
 
-# This script will pop up a mini dialog with progress of any jamf pro policy that is running
+# This script will pop up a mini dialog with progress of a jamf pro policy
 
-# based on Bart Reardon's jss-progress.sh: https://github.com/bartreardon/swiftDialog-scripts/blob/main/JamfSelfService/jss-progress.sh
+# source https://github.com/bartreardon/swiftDialog-scripts/blob/main/JamfSelfService/jss-progress.sh
 
 jamf_pid=""
 jamf_log="/var/log/jamf.log"
@@ -12,13 +12,17 @@ script_log="/var/tmp/jamfprogress.log"
 lock_file="/var/tmp/lock.txt"
 count=0
 
+# icon to show on dialogs
 icon="${1}"
 if [[ -z $icon ]]; then
     icon="/Library/Application Support/JAMF/bin/Management Action.app/Contents/MacOS/Management Action"
 fi
 
 # Location of this script
-progress_script_location="/Library/Management/ETHZ/Progress"
+progress_script_location="${2}"
+if [[ -z "$progress_script_location" ]]; then
+    progress_script_location="/Library/Management/swiftDialog"
+fi
 
 function update_log() {
     /bin/echo "$(date) ${1}" >> "$script_log"
@@ -31,7 +35,7 @@ function dialog_cmd() {
 
 function launch_dialog() {
 	update_log "launching main dialog with log ${dialog_log}"
-    /usr/local/bin/dialog --moveable --position bottomright --mini --title "${policy_name}" --icon "${icon}" --message "Please wait for the process to complete." --progress 8 --commandfile "${dialog_log}" &
+    /usr/local/bin/dialog --moveable --position bottomright --mini --title "${policy_name}" --icon "${icon}" --message "Please wait while we perform a management task on your computer" --progress 8 --commandfile "${dialog_log}" &
     PID=$!
     update_log "main dialog running in the background with PID $PID"
     sleep 0.1
@@ -48,7 +52,7 @@ function dialog_error() {
 
 function quit_script() {
 	update_log "sending quit command"
-    dialog_cmd "quit: "
+    [[ -f "/usr/local/bin/dialog" ]] && dialog_cmd "quit: "
     sleep 0.1
     # brutal hack - need to find a better way
     pgrep tail && pkill tail
@@ -57,14 +61,14 @@ function quit_script() {
 		rm "${dialog_log}"
     fi
     update_log "removing $lock_file"
-    rm -f "$lock_file"
+    rm -f "$lock_file" ||:
     update_log "***** End *****"
     exit 0
 }
 
 function read_jamf_log() {
     update_log "starting jamf log read"    
-    launchd_removal_count=0
+    launchd_count=1
     if [[ "${jamf_pid}" ]]; then
         update_log "processing jamf pro log for PID ${jamf_pid}"
         while read -r line; do    
@@ -93,13 +97,13 @@ function read_jamf_log() {
                     fi
                 ;;
                 *"Removing existing launchd task"*)
-                    $(( launchd_removal_count++ ))
-                    if [[ ${launchd_removal_count} -ge 2 ]]; then
+                    $(( launchd_removal_count-- ))
+                    if [[ ${launchd_removal_count} -le 0 ]]; then
                         update_log "Launchd task removed"
                         dialog_cmd "progresstext: Completed"
                         dialog_cmd "progress: complete"
                         sleep 2
-                        update_log "Ambiguous Break"
+                        update_log "Launchd Break"
                         quit_script
                     else
                         progresstext=$(echo "${status_line}" | awk -F "]: " '{print $NF}')
@@ -109,8 +113,10 @@ function read_jamf_log() {
                     fi
                 ;;
                 *"Executing Policy"*)
-                    # running a trigger so we need to switch to the new PID
+                    # running a trigger so we need to switch to the new PID and add another launchd
+                    $(( launchd_count++ ))
                     jamf_pid=$( awk -F"[][]" '{print $2}' <<< "$status_line" )
+                    update_log "processing jamf pro log for PID ${jamf_pid}"
                     progresstext=$(echo "${status_line}" | awk -F "]: " '{print $NF}')
                     update_log "Reading policy entry : ${progresstext}"
                     dialog_cmd "progresstext: ${progresstext}"
@@ -138,6 +144,10 @@ function read_jamf_log() {
 
 function main() {
     update_log "***** Start *****"
+    if [[ ! -e "/usr/local/bin/dialog" ]]; then
+        update_log "dialog not installed!"
+        quit_script
+    fi
     last_log_entry=$( tail -n 1 "$jamf_log" )
     update_log "$last_log_entry"
     if [[ -f "$lock_file" ]]; then
