@@ -2,9 +2,16 @@
 
 # This script will create a LaunchDaemon that watches the Jamf log for changes and launches swiftDialog if anything is getting installed
 
+version="1.1"
+
 # icon to show on dialogs
 icon="${4}"   # jamf parameter 4
-if [[ -z "$icon" ]]; then
+if [[ "$icon" == "/Applications/Self Service.app" ]]; then
+    # Create temporary icon from Self Service's custom icon (thanks, @meschwartz via @dan-snelson!)
+    temp_icon_path="/var/tmp/overlayicon.icns"
+    /usr/bin/xxd -p -s 260 "$(/usr/bin/defaults read /Library/Preferences/com.jamfsoftware.jamf self_service_app_path)"/Icon$'\r'/..namedfork/rsrc | /usr/bin/xxd -r -p > "$temp_icon_path"
+    icon="$temp_icon_path"
+elif [[ -z "$icon" ]]; then
     icon="/Library/Application Support/JAMF/bin/Management Action.app/Contents/MacOS/Management Action"
 fi
 
