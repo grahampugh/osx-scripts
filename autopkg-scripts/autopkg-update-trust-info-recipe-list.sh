@@ -77,7 +77,7 @@ recipe_format="yaml"
 pull_parents=0
 verify_only=0
 verbosity=""
-RECIPE_OVERRIDE_DIR="${HOME}/Library/AutoPkg/RecipeOverrides"
+RECIPE_OVERRIDE_DIR=$(defaults read com.github.autopkg RECIPE_OVERRIDE_DIRS)
 AUTOPKG="/usr/local/bin/autopkg"
 AUTOPKG_PREFS="$HOME/Library/Preferences/com.github.autopkg.plist"
 
