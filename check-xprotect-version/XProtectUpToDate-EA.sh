@@ -1,7 +1,7 @@
 #!/bin/zsh
 # shellcheck shell=bash
 
-# Sourced from @isaac via @Henry at https://macadmins.slack.com/archives/C0C4X3G3W/p1698417748947319?thread_ts=1698093407.530229&cid=C0C4X3G3W
+# Adapted from @isaac via @Henry at https://macadmins.slack.com/archives/C0C4X3G3W/p1698417748947319?thread_ts=1698093407.530229&cid=C0C4X3G3W
 
 # check that a cached catalog exists
 CATALOG_CACHE="/var/sucatalog/current-catalog.sucatalog"
