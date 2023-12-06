@@ -2,8 +2,7 @@
 # shellcheck shell=bash
 
 : <<DOC
-This script creates a LaunchDaemon that periodically downloads the defined Apple Software Catalog.
-This can be used by Jamf Extension Attributes to check whether local first party software is up to date 
+This script creates a LaunchDaemon that periodically downloads the defined Apple Software Catalog and obtains the latest XProtect Plist Config Data file. This can be used by a Jamf Extension Attributes to check whether the local XProtect version is up to date 
 DOC
 
 SCRIPT_PATH="/Library/Scripts/download-sucatalog.sh"
@@ -11,6 +10,7 @@ LAUNCHDAEMON_LABEL="com.github.grahampugh.download-sucatalog"
 LAUNCHDAEMON_PATH="/Library/LaunchDaemons/$LAUNCHDAEMON_LABEL.plist"
 CURRENT_CATALOG="https://swscan.apple.com/content/catalogs/others/index-14-13-12-10.16-10.15-10.14-10.13-10.12-10.11-10.10-10.9-mountainlion-lion-snowleopard-leopard.merged-1.sucatalog"
 CATALOG_CACHE="/var/sucatalog/current-catalog.sucatalog"
+XPROTECT_PKM_CACHE="/var/sucatalog/XProtectPlistConfigData.pkm"
 
 # create script directory
 /bin/mkdir -p "/Library/Scripts"
@@ -26,6 +26,12 @@ CATALOG_CACHE="/var/sucatalog/current-catalog.sucatalog"
 
 # download catalog
 curl -s "$CURRENT_CATALOG" > "$CATALOG_CACHE"
+
+# get the XProtect PKM file URL and download it.
+if [[ -f "$CATALOG_CACHE" ]]; then
+    xProtectURL=$(grep -m 1 -o 'https.*XProtectPlistConfigData.*\.pkm' < "$CATALOG_CACHE")
+    curl -s "$xProtectURL" > "$XPROTECT_PKM_CACHE"
+fi
 SCRIPT
 
 # prepare the script
