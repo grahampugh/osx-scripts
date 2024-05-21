@@ -25,12 +25,12 @@ XPROTECT_PKM_CACHE="/var/sucatalog/XProtectPlistConfigData.pkm"
 /bin/mkdir -p "/var/sucatalog"
 
 # download catalog
-curl -s "$CURRENT_CATALOG" > "$CATALOG_CACHE"
+curl -s "$CURRENT_CATALOG" -o "$CATALOG_CACHE"
 
 # get the XProtect PKM file URL and download it.
 if [[ -f "$CATALOG_CACHE" ]]; then
     xProtectURL=$(grep -m 1 -o 'https.*XProtectPlistConfigData.*\.pkm' < "$CATALOG_CACHE")
-    curl -s "\$xProtectURL" > "$XPROTECT_PKM_CACHE"
+    curl -s "\$xProtectURL" -o "$XPROTECT_PKM_CACHE"
 fi
 SCRIPT
 
