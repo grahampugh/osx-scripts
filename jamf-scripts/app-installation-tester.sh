@@ -24,22 +24,24 @@ output_file="$tmp_folder/single-test-result.log"
 usage() {
     echo
     echo "Usage:"
-    echo "./app-installation-tester.sh <options> "
-    echo "		APPNAME            - Testing installation of Self Service item APPNAME"
-    echo "		-a=APPNAME or -a|--app APPNAME            - Testing installation of Self Service item APPNAME"
-    echo "	"
-    echo "		-i|--input INPUTFILE            - Specify a file that contains all the applications to be tested "
-    echo "					(as replacement or addition to -a) "
-    echo "	"
-    echo "		-o=OPTION or -o|--option OPTION     "
-    echo "	"
-    echo "			OPTION s            - Current state of Self Service item APPNAMEs"
-    echo "			OPTION t            - Testing installation of Self Service testing item APPNAMEs"
-    echo "			OPTION p            - Testing installation of Self Service productive item APPNAMEs"
-    echo "			OPTION u            - Testing uninstaller of Self Service item APPNAMEs"
-    echo "			OPTION up           - Testing update of Self Service item APPNAMEs"
-    echo "			OPTION testing      - Testing Self Service item APPNAMEs in Testing procedure"
-    echo "			OPTION productive   - Testing Self Service item APPNAMEs in Production procedure"
+    echo "./app-installation-tester.sh <options>"
+    echo
+    echo "      APPNAME                 - Testing installation of Self Service item APPNAME"
+    echo "      -a=APPNAME or -a|--app APPNAME"
+    echo "                              - Testing installation of Self Service item APPNAME"
+    echo
+    echo "      -i|--input INPUTFILE    - Specify a file that contains all the applications to be tested "
+    echo "                                (as replacement or addition to -a) "
+    echo
+    echo "      -o=OPTION or -o|--option OPTION     "
+    echo
+    echo "          OPTION s            - Current state of Self Service item APPNAMEs"
+    echo "          OPTION t            - Testing installation of Self Service testing item APPNAMEs"
+    echo "          OPTION p            - Testing installation of Self Service productive item APPNAMEs"
+    echo "          OPTION u            - Testing uninstaller of Self Service item APPNAMEs"
+    echo "          OPTION up           - Testing update of Self Service item APPNAMEs"
+    echo "          OPTION testing      - Testing Self Service item APPNAMEs in Testing procedure"
+    echo "          OPTION productive   - Testing Self Service item APPNAMEs in Production procedure"
     exit
 }
 
@@ -60,7 +62,7 @@ get_credentials() {
         ${DEFAULTS} write "$PREFS" API_PASSWORD "$jss_api_password"
     fi
 
-    echo "$jss_api_user" > "$user_check_file"		
+    echo "$jss_api_user" > "$user_check_file"       
 }
 
 get_new_token() {
@@ -381,7 +383,7 @@ execute_content() {
                 exec_result="APP_OPEN"
             else
                 exec_result="APP_CLOSED"
-            fi	
+            fi  
             full_result=$(echo "${exec_app}:${current_state}:${exec_action}:${current_state}:${exec_result}" | tee -a "$tmp_log")
             return
         ;;
@@ -421,7 +423,7 @@ execute_content() {
             echo
         else
             exec_result="SUCCESS"
-        fi	
+        fi  
         get_current_state "${exec_app}"
         post_state="${current_state}"
         full_result=$(echo "${exec_app}:${pre_state}:${exec_action}:${post_state}:${exec_result}" | tee -a "$tmp_log")
