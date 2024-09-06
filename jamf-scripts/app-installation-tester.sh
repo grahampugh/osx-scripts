@@ -33,15 +33,15 @@ usage() {
     echo "      -i|--input INPUTFILE    - Specify a file that contains all the applications to be tested "
     echo "                                (as replacement or addition to -a) "
     echo
-    echo "      -o=OPTION or -o|--option OPTION     "
+    echo "      -o=OPTION or -o|--option OPTION"
     echo
-    echo "          OPTION s            - Current state of Self Service item APPNAMEs"
-    echo "          OPTION t            - Testing installation of Self Service testing item APPNAMEs"
-    echo "          OPTION p            - Testing installation of Self Service productive item APPNAMEs"
-    echo "          OPTION u            - Testing uninstaller of Self Service item APPNAMEs"
-    echo "          OPTION up           - Testing update of Self Service item APPNAMEs"
-    echo "          OPTION testing      - Testing Self Service item APPNAMEs in Testing procedure"
-    echo "          OPTION productive   - Testing Self Service item APPNAMEs in Production procedure"
+    echo "         OPTION s             - Current state of Self Service item APPNAMEs"
+    echo "         OPTION t             - Testing installation of Self Service testing item APPNAMEs"
+    echo "         OPTION p             - Testing installation of Self Service productive item APPNAMEs"
+    echo "         OPTION u             - Testing uninstaller of Self Service item APPNAMEs"
+    echo "         OPTION up            - Testing update of Self Service item APPNAMEs"
+    echo "         OPTION testing       - Testing Self Service item APPNAMEs in Testing procedure"
+    echo "         OPTION productive    - Testing Self Service item APPNAMEs in Production procedure"
     exit
 }
 
