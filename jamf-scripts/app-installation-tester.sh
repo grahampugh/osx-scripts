@@ -410,7 +410,7 @@ execute_content() {
     
     policy_id=$(xmllint --xpath "//general/id/text()" "$tmp_folder/output-policy-id.txt" 2>/dev/null)
 
-    if [[ -n "${policy_id}"  ]]; then
+    if [[ -n "${policy_id}" ]]; then
         echo "   [execute_content] Executing Policy ID ${policy_id}:"
         echo "   [execute_content] ${api_url}"
         echo
