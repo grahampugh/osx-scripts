@@ -2,9 +2,9 @@
 # shellcheck shell=bash
 
 DOCSTRING=<<DOC
-apiutil-msu-plan-status.zsh
+apiutil-msu.zsh
 
-A script for getting the status of Jamf Pro MSU plans.
+A script for getting the status of Jamf Pro MSU plans and updates.
 This script requires https://github.com/Jamf-Concepts/apiutil/wiki to be installed and in your PATH. You also need to have added at least one Jamf Pro server to your apiutil config.
 DOC
 
@@ -15,11 +15,15 @@ usage() {
     echo "
 $DOCSTRING
 
-Usage: apiutil-msu-plan-status.zsh --target TARGETNAME
+Usage: apiutil-msu.zsh [--target TARGETNAME] [-p|--plan] [-s|--status] [--dir DIRECTORY]
 Options:
-    --target        Specify a target server. Must be a valid entry in your apiutil config.
-                    If not specified, it will assume it's not needed as you only have one server configured.
-    --dir           Specify a directory to save the output CSV file. Default is /Users/Shared/APIUtilScripts/MSUPlanStatus.
+    -t, --target    Specify a target server. Must be a valid entry in your apiutil config.
+                    Not required if only one server has been configured in API Utility.
+    -p, --plan      Fetch MSU plans.
+    -s, --status    Fetch MSU update statuses.
+    -d, --dir       Specify a directory to save the output CSV file. Default is /Users/Shared/APIUtilScripts/MSUPlanStatus.
+
+    Note that only one of -p or -s can be used at a time.
 "
 }
 
@@ -45,7 +49,7 @@ get_mobile_device_list() {
     echo "$mobile_device_results" > /tmp/device_results.json # TEMP
 }
 
-process_output() {
+create_csv_dir() {
     # create a CSV file to store the output. The name of the file includes the date, time, and subdomain of the JSS instance
     if [[ "$target" ]]; then
         jss_subdomain="_$target"
@@ -57,14 +61,18 @@ process_output() {
 
     # create a CSV file with the name msu_plan_status_<subdomain>_<date>_<time>.csv
     if [[ ! "$csv_dir" ]]; then
-        csv_dir="/Users/Shared/APIUtilScripts/MSUPlanStatus"
+        csv_dir="/Users/Shared/APIUtilScripts/MSURequests"
     fi
     if [[ ! -d "$csv_dir" ]]; then
         echo "Creating directory: $csv_dir"
         mkdir -p "$csv_dir"
     fi
+}
 
-    csv_file_name="msu_plan_status${jss_subdomain}_${current_datetime}.csv"
+process_plan_output() {
+    # create a CSV file to store the output. The name of the file includes the date, time, and subdomain of the JSS instance
+    create_csv_dir
+    csv_file_name="msu_plans${jss_subdomain}_${current_datetime}.csv"
 
     # compile the results into a CSV file
     echo "Device ID,Device Name,Device Type,Device Model,Plan UUID,Update Action,Version Type,Specific Version,Max Deferrals,Force Install Local DateTime,State,Error Reasons" > "$csv_dir/$csv_file_name"
@@ -116,6 +124,50 @@ process_output() {
     echo "   [msu_plan_status] CSV file outputted to: $csv_dir/$csv_file_name"
 }
 
+process_status_output() {
+    create_csv_dir
+    csv_file_name="msu_statuses${jss_subdomain}_${current_datetime}.csv"
+
+    # compile the results into a CSV file
+    echo "Device ID,Device Name,Device Type,Device Model,Downloaded,Percent Complete,Product Key,Status,Max Deferrals,Next Scheduled Install" > "$csv_dir/$csv_file_name"
+    /usr/bin/jq -c '.results[]' "$temp_file" | while IFS= read -r item; do
+        device_id=$(echo "$item" | /usr/bin/jq -r '.device.deviceId')
+        object_type=$(echo "$item" | /usr/bin/jq -r '.device.objectType')
+        max_deferrals=$(echo "$item" | /usr/bin/jq -r '.maxDeferrals')
+        next_scheduled_install=$(echo "$item" | /usr/bin/jq -r '.nextScheduledInstall')
+        downloaded=$(echo "$item" | /usr/bin/jq -r '.downloaded')
+        percent_complete=$(echo "$item" | /usr/bin/jq -r '.downloadPercentComplete')
+        product_key=$(echo "$item" | /usr/bin/jq -r '.productKey')
+        status=$(echo "$item" | /usr/bin/jq -r '.status')
+    
+        if [[ "$object_type" == "COMPUTER" ]]; then
+            echo "Computer ID: $device_id"
+            device_name=$(jq -r --arg id "$device_id" '.[] | select(.id == $id) | .name' <<< "$computer_results")
+            echo "Computer Name: $device_name"
+        elif [[ "$object_type" == "MOBILE_DEVICE" ]]; then
+            echo "Device ID: $device_id"
+            device_name=$(jq -r --arg id "$device_id" '.[] | select(.id == $id) | .name' <<< "$mobile_device_results")
+            device_model=$(jq -r --arg id "$device_id" '.[] | select(.id == $id) | .model' <<< "$mobile_device_results")
+            echo "Device Name: $device_name"
+            echo "Device Model: $device_model"
+        else
+            echo "Unknown Object Type: $object_type"
+            continue
+        fi
+
+        echo "Downloaded: $downloaded"
+        echo "Percent Complete: $percent_complete"
+        echo "Product Key: $product_key"
+        echo "Status: $status"
+        echo "Max Deferrals: $max_deferrals"
+        echo "Next Scheduled Install: $next_scheduled_install"
+        echo
+        # append the output to a csv file
+        echo "$device_id,$device_name,$(tr '[:upper:]' '[:lower:]' <<< "$object_type"),$device_model,$downloaded,$percent_complete,$product_key,$status,$max_deferrals,$next_scheduled_install" >> "$csv_dir/$csv_file_name"
+    done
+    echo "   [msu_statuses] CSV file outputted to: $csv_dir/$csv_file_name"
+}
+
 ## Main Body
 
 # check if apiutil is installed
@@ -141,6 +193,16 @@ while test $# -gt 0 ; do
             shift
             target="$1"
             ;;
+        -p|plan)
+            option="plan"
+            ;;
+        -s|status)
+            option="status"
+            ;;
+        # -e|--event)
+        #     shift
+        #     event="$1"
+        #     ;;
         -d|--dir)
             shift
             csv_dir="$1"
@@ -161,16 +223,54 @@ fi
 get_computer_list
 get_mobile_device_list
 
+if [[ -z "$option" ]]; then
+    echo "No option specified. Please use -p for plan or -s for status."
+    usage
+    exit 1
+fi
+
+if [[ "$option" == "plan" ]]; then
+    echo "Fetching MSU plans..."
+    endpoint="/api/v1/managed-software-updates/plans"
+elif [[ "$option" == "status" ]]; then
+    echo "Fetching MSU update statuses..."
+    endpoint="/api/v1/managed-software-updates/update-statuses"
+else
+    echo "Invalid option specified. Please use -p for plan or -s for status."
+    usage
+    exit 1
+fi
 # now run the command and output the results to a file
-endpoint="/api/v1/managed-software-updates/plans"
 "$jamfapi" --path "$endpoint" "${args[@]}" > "$temp_file"
 
 # now process the output
-if [[ ! -s "$temp_file" ]]; then
+if [[ ! -s "$temp_file" || "$(cat "$temp_file")" == "no objects" ]]; then
     echo "No results found or the output file is empty."
     exit 0
 fi
-process_output
+
+if [[ "$option" == "plan" ]]; then
+    process_plan_output
+
+    # if an event UUID is provided, search for the event in the temp_file and use the api/v1/managed-software-updates/plans/$plan_uuid/events endpoint to get the event details (currently commented out because jamfapi is not successfully returning events)
+    # if [[ "$event" ]]; then
+    #     echo "Searching for event UUID: $event"
+    #     # now run the command and output the results to a file
+    #     endpoint="/api/v1/managed-software-updates/plans"
+    #     "$jamfapi" --path "$endpoint/$event/events" "${args[@]}" > "$temp_file"
+    # fi
+    # if [[ -s "$temp_file" ]]; then
+    #     # parse the event details from the temp_file
+    #     event_details=$(jq -r .events "$temp_file")
+    #     if [[ -n "$event_details" ]]; then
+    #         echo "Event Store: $event_details"
+    #     fi
+    # else
+    #     echo "No event found with UUID: $event"
+    # fi
+elif [[ "$option" == "status" ]]; then
+    process_status_output
+fi
 
 # open the CSV file in the default application
 if [[ -f "$csv_dir/$csv_file_name" ]]; then
@@ -180,4 +280,4 @@ else
     echo "CSV file not found: $csv_dir/$csv_file_name"
 fi
 # clean up temporary files
-rm -f "$temp_file" 
+# rm -f "$temp_file" 
