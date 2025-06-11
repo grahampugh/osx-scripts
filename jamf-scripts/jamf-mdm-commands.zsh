@@ -8,19 +8,11 @@ A script for running various MDM commands in Jamf Pro. Currently supports:
 - Redeploying the MDM profile
 - Setting (or clearing) the Recovery Lock password
 
-Actions:
-- Checks if we already have a token
-- Grabs a new token if required using basic auth
-- Works out the Jamf Pro version, quits if too old for the required command
-- Posts the MDM command request
+This script requires https://github.com/Jamf-Concepts/apiutil/wiki to be installed and in your PATH. You also need to have added at least one Jamf Pro server to your apiutil config.
 DOC
 
 # preset variables
 temp_file="/tmp/jamf_api_output.txt"
-token_file="/tmp/jamf_api_token.txt"
-server_check_file="/tmp/jamf_server_check.txt"
-user_check_file="/tmp/jamf_user_check.txt"
-
 
 usage() {
     echo "
@@ -40,175 +32,87 @@ You can clear the recovery lock password with --clear-recovery-lock-password
 "
 }
 
-
-# ljt section
-: <<-LICENSE_BLOCK
-ljt.min - Little JSON Tool (https://github.com/brunerd/ljt) Copyright (c) 2022 Joel Bruner (https://github.com/brunerd). Licensed under the MIT License. Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-LICENSE_BLOCK
-
-#v1.0.3 - use the minified function below to embed ljt into your shell script
-ljt() ( 
-	[ -n "${-//[^x]/}" ] && set +x; read -r -d '' JSCode <<-'EOT'
-	try {var query=decodeURIComponent(escape(arguments[0]));var file=decodeURIComponent(escape(arguments[1]));if (query[0]==='/'){ query = query.split('/').slice(1).map(function (f){return "["+JSON.stringify(f)+"]"}).join('')}if(/[^A-Za-z_$\d\.\[\]'"]/.test(query.split('').reverse().join('').replace(/(["'])(.*?)\1(?!\\)/g, ""))){throw new Error("Invalid path: "+ query)};if(query[0]==="$"){query=query.slice(1,query.length)};var data=JSON.parse(readFile(file));var result=eval("(data)"+query)}catch(e){printErr(e);quit()};if(result !==undefined){result!==null&&result.constructor===String?print(result): print(JSON.stringify(result,null,2))}else{printErr("Node not found.")}
-	EOT
-	queryArg="${1}"; fileArg="${2}";jsc=$(find "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/" -name 'jsc');[ -z "${jsc}" ] && jsc=$(which jsc);{ [ -f "${queryArg}" ] && [ -z "${fileArg}" ]; } && fileArg="${queryArg}" && unset queryArg;if [ -f "${fileArg:=/dev/stdin}" ]; then { errOut=$( { { "${jsc}" -e "${JSCode}" -- "${queryArg}" "${fileArg}"; } 1>&3 ; } 2>&1); } 3>&1;else { errOut=$( { { "${jsc}" -e "${JSCode}" -- "${queryArg}" "/dev/stdin" <<< "$(cat)"; } 1>&3 ; } 2>&1); } 3>&1; fi;if [ -n "${errOut}" ]; then /bin/echo "$errOut" >&2; return 1; fi
-)
-
-
-get_new_token() {
-    if [[ ! $pass ]]; then
-        printf '%s ' "Enter password for $user : "
-        read -r -s pass
-        if [[ ! $pass ]]; then
-            echo "No password entered. Quitting."
-            exit 1
-        fi
+check_environment() {
+    # check if apiutil is installed
+    jamfapi="/Applications/API Utility.app/Contents/MacOS/apiutil"
+    if ! command -v "$jamfapi" &> /dev/null; then
+        echo "jamfapi is not installed. Please install it from https://github.com/Jamf-Concepts/apiutil and ensure it's in your PATH."
+        echo
+        echo "You can add it to the PATH by running:"
+        echo "sh -c \"echo '\\nalias jamfapi=\\\"/Applications/API\\ Utility.app/Contents/MacOS/apiutil\\\"' >> ~/.zshrc\""
+        echo "Then restart your terminal or run 'source ~/.zshrc' to apply the changes."
+        exit 1
     fi
 
-    # generate a b64 hash of the credentials
-    credentials=$(printf "%s" "$user:$pass" | iconv -t ISO-8859-1 | base64 -i -)
-
-    # request the token
-    curl --location --silent \
-        --request POST \
-        --header "authorization: Basic $credentials" \
-        --url "$url/api/v1/auth/token" \
-        --header 'Accept: application/json' \
-        -o "$token_file"
-    echo "$url" > "$server_check_file"
-    echo "$user" > "$user_check_file"
-}
-
-
-check_token() {
-    # is there a token file
-    if [[ -f "$token_file" ]]; then
-        # check we are still querying the same server and with the same account
-        server_check=$( cat "$server_check_file" )
-        user_check=$( cat "$user_check_file" )
-        if [[ "$server_check" == "$url" && "$user_check" == "$user" ]]; then
-            token=$(plutil -extract token raw "$token_file")
-            expires=$(plutil -extract expires raw "$token_file")
-
-            now=$(date -u +"%Y-%m-%dT%H:%M:%S")
-            echo
-            if [[ $expires < $now ]]; then
-                echo "token expired or invalid ($expires v $now). Grabbing a new one"
-                get_new_token
-            else
-                echo "Existing token still valid"
-            fi
-        else
-            echo "Token does not match current URL or user. Grabbing a new one."
-            get_new_token
-        fi
-    else
-        echo "No token found. Grabbing a new one"
-        get_new_token
-    fi
-
-    token=$(plutil -extract token raw "$token_file")
-}
-
-
-jamf_version_ok() {
-    # check the Jamf Pro version
-
-    min_version_for_command=$1
-
-    curl --location --silent \
-        --request GET \
-        --header "authorization: Bearer $token" \
-        --url "$url/api/v1/jamf-pro-version" \
-        --header 'Accept: application/json' \
-        -o "$temp_file"
-
-    jss_version_raw=$(plutil -extract version raw "$temp_file")
-
-    rm "$temp_file"
-
-    # remove timestamp from Jamf Pro version
-    jss_version="${jss_version_raw%%"-t"*}"
-
-    # remove beta stamp from Jamf Pro version
-    jss_version="${jss_version_raw%%"-b"*}"
-
-    echo
-    echo "Jamf Pro Version = $jss_version"
-
-    # split the version string into an array of major, minor and patch version
-    IFS=.
-    read -r -A version_array <<<"$jss_version"
-    IFS=''
-
-    if [[ ${version_array[1]} -lt 10 || (${version_array[1]} -eq 10 && ${version_array[2]} -lt $min_version_for_command) ]]; then
-        echo "$endpoint requires Jamf Pro 10.$min_version_for_command or greater. Quitting."
+    # check if jq is installed
+    if ! command -v jq &> /dev/null; then
+        echo "jq is not installed. Please run this script on macOS 15 or greater, or manually install jq."
         exit 1
     fi
 }
 
-
 redeploy_mdm() {
-    # check jamf version
-    jamf_version_ok 36
-
     # redeploy MDM profile
-    endpoint="api/v1/jamf-management-framework/redeploy"
-    http_response=$(
-        curl --location --silent \
-            --request POST \
-            --header "authorization: Bearer $token" \
-            --header 'Accept: application/json' \
-            "$url/$endpoint/$id"
-    )
+
+    # now run the command and output the results to a file
+    endpoint="/api/v1/jamf-management-framework/redeploy"
+    "$jamfapi" --path "$endpoint/$id" "${args[@]}" > "$temp_file"
+    
     echo
-    echo "HTTP response: $http_response"
+    echo "HTTP response: $(cat "$temp_file")"
 }
 
+get_computer_list() {
+    # get a list of computers from the JSS
+    # now run the command and output the results to a file
+    endpoint="/api/preview/computers"
+    "$jamfapi" --path "$endpoint" "${args[@]}" > "$temp_file"
+
+    # create a variable containing the json output from $curl_output_file
+    computer_results=$(cat "$temp_file")
+    echo "$computer_results" > /tmp/computer_results.json # TEMP
+}
 
 set_recovery_lock() {
-    # check jamf version
-    jamf_version_ok 32
-    
     # to set the recovery lock, we need to find out the management id
     # The Jamf Pro API returns a list of all computers.
-    endpoint="api/preview/computers"
-    url_filter="?page=0&page-size=1000&sort=id"
-    curl --location  --silent \
-        --request GET \
-        --header "authorization: Bearer $token" \
-        --header 'Accept: application/json' \
-        "$url/$endpoint/$url_filter" \
-        -o "$temp_file"
-        
-    # we have to loop through this to find the ID we want :-/
-    results=$( ljt /results < "$temp_file" )
-    # how big should the loop be?
-    loopsize=$( grep -c '"id"' <<< "$results" )
-    # now loop through and find the correct ID
-    i=0
-    while [[ $i -lt $loopsize ]]; do
-        id_in_list=$( ljt /$i/id <<< "$results" )
-        # echo "ID being checked: $id_in_list (vs. $id)"
-        if [[ $id_in_list -eq $id ]]; then
-            computer_name=$( ljt /$i/name <<< "$results" )
-            management_id=$( ljt /$i/managementId <<< "$results" )
-            break
+
+    if [[ ! $id ]]; then
+        echo "No ID supplied, please provide a computer ID:"
+        read -r id
+        if [[ ! $id ]]; then
+            echo "No ID supplied, exiting..."
+            exit 1
         fi
-        i=$((i+1))
-    done
+    fi
+
+    get_computer_list
+    # how big should the loop be?
+    loopsize=$( jq .totalCount <<< "$computer_results" )
+    echo "Total computers found: $loopsize"
+    if [[ $loopsize -eq 0 ]]; then
+        echo "No computers found in the JSS!"
+        exit 1
+    fi
+
+    computer_name=$(jq -r --arg id "$id" '.results.[] | select(.id == $id) | .name' <<< "$computer_results")
+    if [[ ! $computer_name ]]; then
+        echo "No computer found with ID $id"
+        exit 1
+    fi
+    echo "Computer name: $computer_name"
+    # now we need to find the management ID for the computer
+    management_id=$(jq -r --arg id "$id" '.results.[] | select(.id == $id) | .managementId' <<< "$computer_results")
 
     if [[ $management_id ]]; then
         echo "Management ID found: $management_id"
     else
         echo "Management ID not found :-("
-        # echo
-        # echo "$results"
         echo
         exit 1
     fi
 
-    # we need to set the recovery loack password if not already set
+    # we need to set the recovery lock password if not already set
     if [[ ! $recovery_lock_password ]]; then
         # random or set a specific password?
         printf 'Select [R] for random password, [C] to clear the current password, or enter a specific password : '
@@ -235,49 +139,41 @@ set_recovery_lock() {
     fi
 
     # now issue the recovery lock
-    endpoint="api/preview/mdm/commands"
-    http_response=$(
-        curl --location --silent \
-            --request POST \
-            --header "authorization: Bearer $token" \
-            --header 'Content-Type: application/json' \
-            --data-raw '{
-                "clientData": [
-                    {
-                        "managementId": "'$management_id'",
-                        "clientType": "COMPUTER"
-                    }
-                ],
-                "commandData": {
-                    "commandType": "SET_RECOVERY_LOCK",
-                    "newPassword": "'$recovery_lock_password'"
-                }
-            }' \
-            "$url/$endpoint" 
-    )
+
+    # now run the command and output the results to a file
+    endpoint="/api/v2/mdm/commands"
+    args+=("--method" "POST")
+    args+=("--data")
+    args+=('{
+        "clientData": [
+            {
+                "managementId": "'$management_id'",
+                "clientType": "COMPUTER"
+            }
+        ],
+        "commandData": {
+            "commandType": "SET_RECOVERY_LOCK",
+            "newPassword": "'$recovery_lock_password'"
+        }
+    }')
+    "$jamfapi" --path "$endpoint" "${args[@]}" > "$temp_file"
     echo
-    echo "HTTP response: $http_response"
+    echo "HTTP response: $(cat "$temp_file")"
 }
 
 
 ## Main Body
+
+check_environment
+
 mdm_command=""
-recovery_lock_password=""
 
 # read inputs
 while test $# -gt 0 ; do
     case "$1" in
-        -s|--jss|--url)
+        -t|--target)
             shift
-            jss="$1"
-            ;;
-        -u|--user)
-            shift
-            user="$1"
-            ;;
-        -p|--pass)
-            shift
-            pass="$1"
+            target="$1"
             ;;
         -i|--id)
             shift
@@ -307,39 +203,9 @@ while test $# -gt 0 ; do
     shift
 done
 
-# ask for any missing inputs
-if [[ ! $jss ]]; then
-    printf '%s ' "Enter URL : "
-    read -r jss
-    if [[ ! $jss ]]; then
-        echo "No URL entered. Quitting."
-        exit 1
-    fi
-fi
-
-if [[ ! $id ]]; then
-    printf '%s ' "Enter Computer ID : "
-    read -r id
-    if [[ ! $id ]]; then
-        echo "No Computer ID entered. Quitting."
-        exit 1
-    fi
-fi
-
-if [[ ! $user ]]; then
-    printf '%s ' "Enter username for $jss : "
-    read -r user
-    if [[ ! $user ]]; then
-        echo "No username entered. Quitting."
-        exit 1
-    fi
-fi
-
-# build a valid URL
-if [[ "$url" != "https://"* ]]; then
-    url="https://$jss"
-else
-    url="$jss"
+args=()
+if [[ "$target" ]]; then
+    args+=("--target" "$target")
 fi
 
 if [[ ! $mdm_command ]]; then
@@ -363,9 +229,6 @@ if [[ ! $mdm_command ]]; then
 fi
 
 echo
-
-# get a valid token
-check_token
 
 # the following section depends on the chosen MDM command
 case "$mdm_command" in
