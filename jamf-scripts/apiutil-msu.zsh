@@ -20,6 +20,9 @@ Options:
     -t, --target    Specify a target server. Must be a valid entry in your apiutil config.
                     Not required if only one server has been configured in API Utility.
     -p, --plan      Fetch MSU plans.
+    -o, --open      Open the output CSV file in the default application.
+    -e, --event     Include event details in the output CSV file.
+                    This will add additional columns for plan events.
     -s, --status    Fetch MSU update statuses.
     -d, --dir       Specify a directory to save the output CSV file. Default is /Users/Shared/APIUtilScripts/MSUPlanStatus.
 
