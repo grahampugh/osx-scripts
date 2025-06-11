@@ -75,7 +75,11 @@ process_plan_output() {
     csv_file_name="msu_plans${jss_subdomain}_${current_datetime}.csv"
 
     # compile the results into a CSV file
-    echo "Device ID,Device Name,Device Type,Device Model,Plan UUID,Update Action,Version Type,Specific Version,Max Deferrals,Force Install Local DateTime,State,Error Reasons" > "$csv_dir/$csv_file_name"
+    if [[ "$events" == "true" ]]; then
+        echo "Device ID,Device Name,Device Type,Device Model,Plan UUID,Update Action,Version Type,Specific Version,Max Deferrals,Force Install Local DateTime,State,Error Reasons,Plan Created,Plan Accepted,Plan Started,Declarative Command Queued,DDM Plan Scheduled,Plan Rejected" > "$csv_dir/$csv_file_name"
+    else
+        echo "Device ID,Device Name,Device Type,Device Model,Plan UUID,Update Action,Version Type,Specific Version,Max Deferrals,Force Install Local DateTime,State,Error Reasons" > "$csv_dir/$csv_file_name"
+    fi
     /usr/bin/jq -c '.results[]' "$temp_file" | while IFS= read -r item; do
         device_id=$(echo "$item" | /usr/bin/jq -r '.device.deviceId')
         object_type=$(echo "$item" | /usr/bin/jq -r '.device.objectType')
@@ -118,10 +122,84 @@ process_plan_output() {
         echo
 
         # append the output to a csv file
+        if [[ "$events" == "true" ]]; then
+            # get the event details if events are enabled
+            get_event "$plan_uuid"
+            echo "$device_id,$device_name,$(tr '[:upper:]' '[:lower:]' <<< "$object_type"),$device_model,$plan_uuid,$update_action,$version_type,$specific_version,$max_deferrals,$force_install_local_datetime,$state,$error_reasons,$plan_created_event,$plan_accepted_event,$start_plan_event,$queue_declarative_command,$ddm_plan_scheduled_event,$plan_rejected_event" >> "$csv_dir/$csv_file_name"
+        fi
         echo "$device_id,$device_name,$(tr '[:upper:]' '[:lower:]' <<< "$object_type"),$device_model,$plan_uuid,$update_action,$version_type,$specific_version,$max_deferrals,$force_install_local_datetime,$state,$error_reasons" >> "$csv_dir/$csv_file_name"
     done
 
     echo "   [msu_plan_status] CSV file outputted to: $csv_dir/$csv_file_name"
+}
+
+get_event() {
+    # if an event UUID is provided, search for the event in the temp_file and use the api/v1/managed-software-updates/plans/$plan_uuid/events endpoint to get the event details (currently commented out because jamfapi is not successfully returning events)
+    local event="$1"
+    if [[ "$events" == "true" ]]; then
+        echo "Searching for event UUID: $event"
+        # now run the command and output the results to a file
+        endpoint="/api/v1/managed-software-updates/plans"
+        "$jamfapi" --path "$endpoint/$event/events" "${args[@]}" > "$temp_file"
+    fi
+    if [[ -s "$temp_file" ]]; then
+        # parse the event details from the temp_file
+        event_details=$(jq -r .events "$temp_file")
+        if [[ -n "$event_details" ]]; then
+            # echo "Event Store: $event_details" # TEMP
+            # using jq, parse the event details to get the types and their associated eventReceivedEpoch
+            # convert the eventReceivedEpoch to a human-readable format
+            plan_created_event=""
+            plan_accepted_event=""
+            start_plan_event=""
+            queue_declarative_command=""
+            ddm_plan_scheduled_event=""
+            plan_rejected_event=""
+            echo "Event Details:"
+            # using jq to format the output
+            jq -r '.events[] | "\(.type): \(.eventReceivedEpoch)"' <<< "$event_details" | while read -r line; do
+                event_type=$(echo "$line" | cut -d':' -f1)
+                event_epoch=$(echo "$line" | cut -d':' -f2 | xargs) # xargs to trim whitespace
+                if [[ "$event_epoch" == "null" ]]; then
+                    event_date="None"
+                else
+                    event_date=$(date -r $((event_epoch/1000)) +"%Y-%m-%d %H:%M:%S")
+                fi
+                # echo "${event_type/\./}: $event_date"
+                case "$event_type" in
+                    ".PlanCreatedEvent")
+                        echo "Plan Created: $event_date"
+                        plan_created_event="$event_date"
+                        ;;
+                    ".PlanAcceptedEvent")
+                        echo "Plan Accepted: $event_date"
+                        plan_accepted_event="$event_date"
+                        ;;
+                    ".StartPlanEvent")
+                        echo "Plan Started: $event_date"
+                        start_plan_event="$event_date"
+                        ;;
+                    ".QueueDeclarativeCommand")
+                        echo "Declarative Command Queued: $event_date"
+                        queue_declarative_command="$event_date"
+                        ;;
+                    ".DDMPlanScheduledEvent")
+                        echo "DDM Plan Scheduled: $event_date"
+                        ddm_plan_scheduled_event="$event_date"
+                        ;;
+                    ".PlanRejectedEvent")
+                        echo "Plan Rejected: $event_date"
+                        plan_rejected_event="$event_date"
+                        ;;
+                    *)
+                        echo "Event Type $event_type: $event_date"
+                        ;;
+                esac
+            done
+        fi
+    else
+        echo "No event found with UUID: $event"
+    fi
 }
 
 process_status_output() {
@@ -199,10 +277,12 @@ while test $# -gt 0 ; do
         -s|status)
             option="status"
             ;;
-        # -e|--event)
-        #     shift
-        #     event="$1"
-        #     ;;
+        -o|--open)
+            open_csv=true
+            ;;
+        -e|--event)
+            events="true"
+            ;;
         -d|--dir)
             shift
             csv_dir="$1"
@@ -251,31 +331,18 @@ fi
 
 if [[ "$option" == "plan" ]]; then
     process_plan_output
-
-    # if an event UUID is provided, search for the event in the temp_file and use the api/v1/managed-software-updates/plans/$plan_uuid/events endpoint to get the event details (currently commented out because jamfapi is not successfully returning events)
-    # if [[ "$event" ]]; then
-    #     echo "Searching for event UUID: $event"
-    #     # now run the command and output the results to a file
-    #     endpoint="/api/v1/managed-software-updates/plans"
-    #     "$jamfapi" --path "$endpoint/$event/events" "${args[@]}" > "$temp_file"
-    # fi
-    # if [[ -s "$temp_file" ]]; then
-    #     # parse the event details from the temp_file
-    #     event_details=$(jq -r .events "$temp_file")
-    #     if [[ -n "$event_details" ]]; then
-    #         echo "Event Store: $event_details"
-    #     fi
-    # else
-    #     echo "No event found with UUID: $event"
-    # fi
 elif [[ "$option" == "status" ]]; then
     process_status_output
 fi
 
 # open the CSV file in the default application
 if [[ -f "$csv_dir/$csv_file_name" ]]; then
-    echo "Opening CSV file: $csv_dir/$csv_file_name"
-    open "$csv_dir/$csv_file_name"
+    if [[ "$open_csv" == "true" ]]; then
+        echo "Opening CSV file: $csv_dir/$csv_file_name"
+        open "$csv_dir/$csv_file_name"
+    else
+        echo "CSV file created: $csv_dir/$csv_file_name"
+    fi
 else
     echo "CSV file not found: $csv_dir/$csv_file_name"
 fi
