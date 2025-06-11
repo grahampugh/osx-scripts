@@ -4,7 +4,7 @@
 DOCSTRING=<<DOC
 apiutil-msu-plan-status.zsh
 
-A script for getting the status of a Jamf Pro MSU plan.
+A script for getting the status of Jamf Pro MSU plans.
 This script requires https://github.com/Jamf-Concepts/apiutil/wiki to be installed and in your PATH. You also need to have added at least one Jamf Pro server to your apiutil config.
 DOC
 
