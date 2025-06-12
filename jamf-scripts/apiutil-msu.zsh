@@ -17,27 +17,31 @@ $DOCSTRING
 
 Usage: apiutil-msu.zsh [--target TARGETNAME] [-p|--plan] [-s|--status] [--dir DIRECTORY]
 Options:
-    -t, --target             Specify a target server. Must be a valid entry in your apiutil config.
-                             Not required if only one server has been configured in API Utility.
-    -c, --create             Create a new MSU plan. Requires -g, -v, and -f options. 
-                             Note: Only a scheduled install plan can be created with this script.
+    -t, --target            Specify a target server. 
+                            Must be a valid entry in your apiutil config.
+                            Not required if only one server has been configured in API Utility.
+    -c, --create            Create a new MSU plan. Requires -g, -v, and -f options. 
+                            Note: Only a scheduled install plan can be created with this script.
     -d, --device-type
-                             Specify the device type to create a plan for. Options are COMPUTER, MOBILE_DEVICE, or APPLE_TV.
-                             Default is COMPUTER.
-    -g, --group              Specify the group ID to create a plan for. Required for creating a plan.
+                            Specify the device type to create a plan for. Options are COMPUTER, MOBILE_DEVICE, or APPLE_TV.
+                            Default is COMPUTER.
+    -g, --group             Specify the group ID to create a plan for. 
+                            Required for creating a plan.
     -v, --version-type
-                             Specify the version type for the plan. Options are LATEST_MAJOR, LATEST_MINOR, or SPECIFIC_VERSION.
+                            Specify the version type for the plan. Options are LATEST_MAJOR, LATEST_MINOR, or SPECIFIC_VERSION.
     -sv, --specific-version
-                             Specify the specific version for the plan. Required if version type is SPECIFIC_VERSION.
+                            Specify the specific version for the plan. Required if version type is SPECIFIC_VERSION.
     -i, --days-until-force-install
-                             Specify the number of days until the force install local date/time. Default is 7 days from now.
-                             This will be used to schedule the install.
-    -p, --plan               Fetch MSU plans.
-    -o, --open               Open the output CSV file in the default application.
-    -e, --events             Include event details in the output CSV file.
-                             This will add additional columns for plan events.
-    -s, --status             Fetch MSU update statuses.
-    -d, --dir                Specify a directory to save the output CSV file. Default is /Users/Shared/APIUtilScripts/MSUPlanStatus.
+                            Specify the number of days until the force install local date/time. 
+                            Default is 7 days from now.
+                            This will be used to schedule the install.
+    -p, --plan              Fetch MSU plans.
+    -o, --open              Open the output CSV file in the default application.
+    -e, --events            Include event details in the output CSV file.
+                            This will add additional columns for plan events.
+    -s, --status            Fetch MSU update statuses.
+    -d, --dir               Specify a directory to save the output CSV file. 
+                            Default is /Users/Shared/APIUtilScripts/MSUPlanStatus.
 
     Note that only one of -c, -p or -s can be used at a time.
 "
