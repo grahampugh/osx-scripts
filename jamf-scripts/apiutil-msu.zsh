@@ -10,6 +10,7 @@ DOC
 
 # preset variables
 temp_file="/tmp/jamf_api_output.txt"
+log_file="/tmp/jamf_api_log.txt"
 
 usage() {
     echo "
@@ -154,7 +155,8 @@ process_plan_output() {
         fi
     done
 
-    echo "   [msu_plan_status] CSV file outputted to: $csv_dir/$csv_file_name"
+    echo "CSV file outputted to: $csv_dir/$csv_file_name"
+    echo "CSV file outputted to: $csv_dir/$csv_file_name" > "$log_file"
 }
 
 get_event() {
@@ -280,7 +282,8 @@ process_status_output() {
         # append the output to a csv file
         echo "$device_id,$device_name,$(tr '[:upper:]' '[:lower:]' <<< "$object_type"),$device_model,$downloaded,$percent_complete,$product_key,$status,$max_deferrals,$next_scheduled_install" >> "$csv_dir/$csv_file_name"
     done
-    echo "   [msu_statuses] CSV file outputted to: $csv_dir/$csv_file_name"
+    echo "CSV file outputted to: $csv_dir/$csv_file_name"
+    echo "CSV file outputted to: $csv_dir/$csv_file_name" > "$log_file"
 }
 
 create_plan() {
@@ -312,8 +315,10 @@ create_plan() {
     # check if the plan was created successfully
     if "$jamfapi" --path "$endpoint" "${args[@]}"; then
         echo "Plan created successfully."
+        echo "Plan created successfully." > "$log_file"
     else
         echo "Failed to create plan. Please check the parameters and try again."
+        echo "Failed to create plan. Please check the parameters and try again." > "$log_file"
         exit 1
     fi
 }
@@ -328,7 +333,8 @@ get_software_update_feature_status() {
         toggle_set_value="false"
     fi
 
-    echo "Current toggle value is '$toggle_value'. "
+    echo "Current toggle value is '$toggle_value'."
+    echo "Current toggle value is '$toggle_value'." > "$log_file"
 
     # grab current background status
     endpoint="api/v1/managed-software-updates/plans/feature-toggle/status"
@@ -337,8 +343,8 @@ get_software_update_feature_status() {
     toggle_on_value=$(/usr/bin/plutil -extract toggleOn.formattedPercentComplete raw "$temp_file" 2>/dev/null)
     toggle_off_value=$(/usr/bin/plutil -extract toggleOff.formattedPercentComplete raw "$temp_file" 2>/dev/null)
 
-    echo "   [toggle_software_update_feature] Toggle on status: '$toggle_on_value'..."
-    echo "   [toggle_software_update_feature] Toggle off status: '$toggle_off_value'..."
+    echo "Toggle on status: '$toggle_on_value'..."
+    echo "Toggle off status: '$toggle_off_value'..."
 }
 
 toggle_software_update_feature() {
@@ -358,9 +364,11 @@ toggle_software_update_feature() {
     )
     # check if the plan was created successfully
     if "$jamfapi" --path "$endpoint" "${args[@]}"; then
-        echo "Request sent successfully."
+        echo "Request sent successfully. Toggle is now set to '$toggle_set_value'"
+        echo "Request sent successfully. Toggle is now set to '$toggle_set_value'" > "$log_file"
     else
-        echo "Request failed."
+        echo "Toggle request failed."
+        echo "Toggle request failed." > "$log_file"
         exit 1
     fi
 }
@@ -399,6 +407,7 @@ get_computer_group_id_from_name() {
     group_id=$(jq -r --arg name "$group_name" '.[] | select(.name == $name) | .id' <<< "$computer_group_results" | head -n 1)
     if [[ -z "$group_id" ]]; then
         echo "No computer group found with name: $group_name"
+        echo "No computer group found with name: $group_name" > "$log_file"
         exit 1
     fi
     echo "Group ID: $group_id"
@@ -415,24 +424,27 @@ get_mobile_device_group_id_from_name() {
     group_id=$(jq -r --arg name "$group_name" '.[] | select(.name == $name) | .id' <<< "$mobile_device_group_results" | head -n 1)
     if [[ -z "$group_id" ]]; then
         echo "No mobile device group found with name: $group_name"
+        echo "No mobile device group found with name: $group_name" > "$log_file"
         exit 1
     fi
     echo "Group ID: $group_id"
 }
 
 are_you_sure() {
-    echo
-    echo -n "Are you sure you want to perform the action? (Y/N) : "
-    read -r sure
-    case "$sure" in
-        Y|y)
-            return
-            ;;
-        *)
-            echo "   [are_you_sure] Action cancelled, quitting"
-            exit 
-            ;;
-    esac
+    if [[ $i_am_sure != "true" ]]; then
+        echo
+        echo -n "Are you sure you want to perform the action? (Y/N) : "
+        read -r sure
+        case "$sure" in
+            Y|y)
+                return
+                ;;
+            *)
+                echo "Action cancelled, quitting"
+                exit 
+                ;;
+        esac
+    fi
 }
 
 ## Main Body
@@ -450,6 +462,7 @@ fi
 # check if jq is installed
 if ! command -v jq &> /dev/null; then
     echo "jq is not installed. Please run this script on macOS 15 or greater, or manually install jq."
+    echo "jq is not installed. Please run this script on macOS 15 or greater, or manually install jq." > "$log_file"
     exit 1
 fi
 
@@ -483,10 +496,10 @@ while test $# -gt 0 ; do
             shift
             days_until_force_install="$1"
             ;;
-        -p|plan)
+        -p|--plan)
             option="plan"
             ;;
-        -s|status)
+        -s|--status)
             option="status"
             ;;
         -o|--open)
@@ -501,6 +514,9 @@ while test $# -gt 0 ; do
             ;;
         --toggle)
             option="toggle"
+            ;;
+        --i-am-sure)
+            i_am_sure="true"
             ;;
         *)
             usage
@@ -526,15 +542,15 @@ get_software_update_feature_status
 
 # first deal with the toggle option
 if [[ "$option" == "toggle" ]]; then
-    echo "   [toggle_software_update_feature] WARNING: Do not proceed if either of the above values is less than 100%"
+    echo "WARNING: Do not proceed if either of the above values is less than 100%"
     are_you_sure
     echo "Toggling Software Update Plan Feature..."
     echo "Current toggle value is '$toggle_value'."
     if [[ "$toggle_value" == "true" ]]; then
-        echo "   [toggle_software_update_feature] Toggling off the feature..."
+        echo "Toggling off the feature..."
         toggle_set_value="false"
     else
-        echo "   [toggle_software_update_feature] Toggling on the feature..."
+        echo "Toggling on the feature..."
         toggle_set_value="true"
     fi
     toggle_software_update_feature
@@ -562,6 +578,7 @@ if [[ "$option" == "create" ]]; then
     if [[ -z "$specific_version" ]]; then
         if [[ "$version_type" == "SPECIFIC_VERSION" ]]; then
             echo "Specific version is required when version type is 'SPECIFIC_VERSION'."
+            echo "Specific version is required when version type is 'SPECIFIC_VERSION'." > "$log_file"
             exit 1
         else
             specific_version="NO_SPECIFIC_VERSION"
@@ -603,12 +620,27 @@ else
     exit 1
 fi
 # now run the command and output the results to a file
-"$jamfapi" --path "$endpoint" "${args[@]}" > "$temp_file"
-
-# now process the output
-if [[ ! -s "$temp_file" || "$(cat "$temp_file")" == "no objects" ]]; then
-    echo "No results found or the output file is empty."
-    exit 0
+if "$jamfapi" --path "$endpoint" "${args[@]}" > "$temp_file"; then
+    # now process the output
+    if [[ ! -s "$temp_file" || "$(cat "$temp_file")" == "no objects" ]]; then
+        echo "No results found or the output file is empty."
+        echo "No results found or the output file is empty." > "$log_file"
+        exit 1
+    elif [[ $toggle_value == "false" ]]; then
+        echo "The action could not be performed because the Software Update toggle is disabled "
+        echo "The action could not be performed because the Software Update toggle is disabled." > "$log_file"
+        exit 1
+    fi
+else
+    if [[ $toggle_value == "false" ]]; then
+        echo "The action could not be performed because the Software Update toggle is disabled "
+        echo "The action could not be performed because the Software Update toggle is disabled." > "$log_file"
+        exit 1
+    else
+        echo "There was an error performing the action."
+        echo "There was an error performing the action." > "$log_file"
+        exit 1
+    fi
 fi
 
 if [[ "$option" == "plan" ]]; then

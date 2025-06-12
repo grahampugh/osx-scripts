@@ -24,16 +24,16 @@ if [[ -z "$progress_script_location" ]]; then
     progress_script_location="/Library/Management/swiftDialog"
 fi
 
-function update_log() {
+update_log() {
     /bin/echo "$(date) ${1}" >> "$script_log"
 }
 
-function dialog_cmd() {
+dialog_cmd() {
     /bin/echo "${1}" >> "${dialog_log}"
     sleep 0.1
 }
 
-function launch_dialog() {
+launch_dialog() {
 	update_log "launching main dialog with log ${dialog_log}"
     /usr/local/bin/dialog --moveable --position bottomright --mini --title "${policy_name}" --icon "${icon}" --message "Please wait while we perform a management task on your computer" --progress 8 --commandfile "${dialog_log}" &
     PID=$!
@@ -41,7 +41,7 @@ function launch_dialog() {
     sleep 0.1
 }
 
-function dialog_error() {
+dialog_error() {
 	update_log "launching error dialog"
     errormsg="### Error\n\nSomething went wrong. Please contact IT support and report the following error message:\n\n${1}"
     /usr/local/bin/dialog --ontop --title "Jamf Policy Error" --icon "${icon}" --overlayicon caution --message "${errormsg}"
@@ -50,7 +50,7 @@ function dialog_error() {
     sleep 0.1
 }
 
-function quit_script() {
+quit_script() {
 	update_log "sending quit command"
     [[ -f "/usr/local/bin/dialog" ]] && dialog_cmd "quit: "
     sleep 0.1
@@ -66,7 +66,7 @@ function quit_script() {
     exit 0
 }
 
-function read_jamf_log() {
+read_jamf_log() {
     update_log "starting jamf log read"    
     launchd_count=1
     if [[ "${jamf_pid}" ]]; then
@@ -142,7 +142,7 @@ function read_jamf_log() {
     update_log "end while loop"
 }
 
-function main() {
+main() {
     update_log "***** Start *****"
     if [[ ! -e "/usr/local/bin/dialog" ]]; then
         update_log "dialog not installed!"
