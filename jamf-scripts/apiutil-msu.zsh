@@ -42,6 +42,9 @@ Options:
     -s, --status            Fetch MSU update statuses.
     -d, --dir               Specify a directory to save the output CSV file. 
                             Default is /Users/Shared/APIUtilScripts/MSUPlanStatus.
+    --toggle                Toggle Software Update Plan Feature
+                            This will toggle the feature on or off, clearing any plans
+                                  that may be set. 
 
     Note that only one of -c, -p or -s can be used at a time.
 "
@@ -282,28 +285,7 @@ process_status_output() {
 
 create_plan() {
     # create a plan for the MSU updates
-    # this is a placeholder function, as the actual plan creation is not implemented in this script
-    echo "Creating MSU plan..."
-
-    # to create a plan we need to supply the following parameters:
-    # - target group
-    # - update action, which for this script will always be "DOWNLOAD_INSTALL_SCHEDULE"
-    # - version type, which can be "LATEST_MAJOR", "LATEST_MINOR" or "SPECIFIC_VERSION"
-    # - specific version, which is only required if version type is "SPECIFIC_VERSION"
-    # - Force Install Local DateTime, which is used to schedule the install
-    # The data is composed of JSON as follows:
-    # {
-    #   "group": {
-    #     "objectType": "COMPUTER_GROUP",
-    #     "groupId": "10"
-    #   },
-    #   "config": {
-    #     "updateAction": "DOWNLOAD_INSTALL_SCHEDULE",
-    #     "versionType": "SPECIFIC_VERSION",
-    #     "specificVersion": "15.5"
-    #   }
-    # }
-    # The required inputs are therefore the group ID, the version type, the specific version if version type is "SPECIFIC_VERSION", and the Force Install Local DateTime.
+    # The required inputs are the group ID, the version type, the specific version if version type is "SPECIFIC_VERSION", and the Force Install Local DateTime.
     # now run the command and output the results to a file
     device_type=$(tr '[:lower:]' '[:upper:]' <<< "$device_type")
     endpoint="/api/v1/managed-software-updates/plans/group"
@@ -334,6 +316,68 @@ create_plan() {
         echo "Failed to create plan. Please check the parameters and try again."
         exit 1
     fi
+}
+
+get_software_update_feature_status() {
+    # grab current value
+    endpoint="api/v1/managed-software-updates/plans/feature-toggle"
+    "$jamfapi" --path "$endpoint" "${args[@]}" > "$temp_file"
+    toggle_value=$(/usr/bin/plutil -extract toggle raw "$temp_file" 2>/dev/null)
+    toggle_set_value="true"
+    if [[ $toggle_value == "true" ]]; then 
+        toggle_set_value="false"
+    fi
+
+    echo "Current toggle value is '$toggle_value'. "
+
+    # grab current background status
+    endpoint="api/v1/managed-software-updates/plans/feature-toggle/status"
+    "$jamfapi" --path "$endpoint" "${args[@]}" > "$temp_file"
+
+    toggle_on_value=$(/usr/bin/plutil -extract toggleOn.formattedPercentComplete raw "$temp_file" 2>/dev/null)
+    toggle_off_value=$(/usr/bin/plutil -extract toggleOff.formattedPercentComplete raw "$temp_file" 2>/dev/null)
+
+    echo "   [toggle_software_update_feature] Toggle on status: '$toggle_on_value'..."
+    echo "   [toggle_software_update_feature] Toggle off status: '$toggle_off_value'..."
+}
+
+toggle_software_update_feature() {
+    # This function will toggle the "new" software update feature allowing to clear any plans
+
+    echo
+    echo "Toggling software update feature..."
+    echo "This will toggle the feature on or off, clearing any plans that may be set."
+    echo "This endpoint is asynchronous, the provided value will not be immediately updated."
+    echo
+
+    # toggle software update feature
+    endpoint="api/v1/managed-software-updates/plans/feature-toggle"
+    args+=("--method" "PUT")
+    args+=("--data")
+    args+=('{"toggle": "'$toggle_set_value'"}'
+    )
+    # check if the plan was created successfully
+    if "$jamfapi" --path "$endpoint" "${args[@]}"; then
+        echo "Request sent successfully."
+    else
+        echo "Request failed."
+        exit 1
+    fi
+}
+
+are_you_sure() {
+    echo
+    echo -n "Are you sure you want to perform the action? (Y/N) : "
+    read -r sure
+    case "$sure" in
+        Y|y)
+            return
+            ;;
+        *)
+            echo "   [are_you_sure] Action cancelled, quitting"
+            exit 
+            ;;
+    esac
 }
 
 ## Main Body
@@ -400,6 +444,9 @@ while test $# -gt 0 ; do
             shift
             csv_dir="$1"
             ;;
+        --toggle)
+            option="toggle"
+            ;;
         *)
             usage
             exit
@@ -419,7 +466,27 @@ if [[ -z "$option" ]]; then
     exit 1
 fi
 
-# deal with creating plans first
+# check software feature status
+get_software_update_feature_status
+
+# first deal with the toggle option
+if [[ "$option" == "toggle" ]]; then
+    echo "   [toggle_software_update_feature] WARNING: Do not proceed if either of the above values is less than 100%"
+    are_you_sure
+    echo "Toggling Software Update Plan Feature..."
+    echo "Current toggle value is '$toggle_value'."
+    if [[ "$toggle_value" == "true" ]]; then
+        echo "   [toggle_software_update_feature] Toggling off the feature..."
+        toggle_set_value="false"
+    else
+        echo "   [toggle_software_update_feature] Toggling on the feature..."
+        toggle_set_value="true"
+    fi
+    toggle_software_update_feature
+    exit 0
+fi
+
+# deal with creating plans next
 if [[ "$option" == "create" ]]; then
     echo "Creating MSU plan..."
     if [[ "$device_type" != "COMPUTER" && "$device_type" != "MOBILE_DEVICE" && "$device_type" != "APPLE_TV" && "$device_type" != "computer" && "$device_type" != "mobile_device" && "$device_type" != "apple_tv" ]]; then
