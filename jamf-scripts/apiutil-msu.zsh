@@ -381,7 +381,7 @@ get_list_of_computer_groups() {
 
     # create a variable containing the json output from $curl_output_file
     computer_group_results=$(/usr/bin/jq -s '[.[].results[]]' "$temp_file")
-    cp "$temp_file" > /tmp/computer_group_results.txt # TEMP
+    cp "$temp_file" /tmp/computer_group_results.txt # TEMP
     echo "$computer_group_results" > /tmp/computer_group_results.json # TEMP
 }
 
