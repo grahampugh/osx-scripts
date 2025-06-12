@@ -129,8 +129,9 @@ process_plan_output() {
             # get the event details if events are enabled
             get_event "$plan_uuid"
             echo "$device_id,$device_name,$(tr '[:upper:]' '[:lower:]' <<< "$object_type"),$device_model,$plan_uuid,$update_action,$version_type,$specific_version,$max_deferrals,$force_install_local_datetime,$state,$error_reasons,$plan_created_event,$plan_accepted_event,$start_plan_event,$queue_declarative_command,$ddm_plan_scheduled_event,$plan_rejected_event" >> "$csv_dir/$csv_file_name"
+        else
+            echo "$device_id,$device_name,$(tr '[:upper:]' '[:lower:]' <<< "$object_type"),$device_model,$plan_uuid,$update_action,$version_type,$specific_version,$max_deferrals,$force_install_local_datetime,$state,$error_reasons" >> "$csv_dir/$csv_file_name"
         fi
-        echo "$device_id,$device_name,$(tr '[:upper:]' '[:lower:]' <<< "$object_type"),$device_model,$plan_uuid,$update_action,$version_type,$specific_version,$max_deferrals,$force_install_local_datetime,$state,$error_reasons" >> "$csv_dir/$csv_file_name"
     done
 
     echo "   [msu_plan_status] CSV file outputted to: $csv_dir/$csv_file_name"
@@ -160,42 +161,55 @@ get_event() {
             plan_rejected_event=""
             echo "Event Details:"
             # using jq to format the output
-            jq -r '.events[] | "\(.type): \(.eventReceivedEpoch)"' <<< "$event_details" | while read -r line; do
+            jq -r '.events[] | "\(.type):\(.eventReceivedEpoch):\(.eventSentEpoch)"' <<< "$event_details" | while read -r line; do
                 event_type=$(echo "$line" | cut -d':' -f1)
-                event_epoch=$(echo "$line" | cut -d':' -f2 | xargs) # xargs to trim whitespace
-                if [[ "$event_epoch" == "null" ]]; then
-                    event_date="None"
+                event_received_epoch=$(echo "$line" | cut -d':' -f2) 
+                event_sent_epoch=$(echo "$line" | cut -d':' -f3) 
+                # events have a received epoch
+                if [[ "$event_received_epoch" == "null" ]]; then
+                    event_received_date=""
                 else
-                    event_date=$(date -r $((event_epoch/1000)) +"%Y-%m-%d %H:%M:%S")
+                    event_received_date=$(date -r $((event_received_epoch/1000)) +"%Y-%m-%d %H:%M:%S")
                 fi
-                # echo "${event_type/\./}: $event_date"
+                # commands have a sent epoch
+                if [[ "$event_sent_epoch" == "null" ]]; then
+                    event_sent_date=""
+                else
+                    event_sent_date=$(date -r $((event_sent_epoch/1000)) +"%Y-%m-%d %H:%M:%S")
+                fi
                 case "$event_type" in
                     ".PlanCreatedEvent")
-                        echo "Plan Created: $event_date"
-                        plan_created_event="$event_date"
+                        echo "Plan Created: $event_received_date"
+                        plan_created_event="$event_received_date"
                         ;;
                     ".PlanAcceptedEvent")
-                        echo "Plan Accepted: $event_date"
-                        plan_accepted_event="$event_date"
+                        echo "Plan Accepted: $event_received_date"
+                        plan_accepted_event="$event_received_date"
                         ;;
                     ".StartPlanEvent")
-                        echo "Plan Started: $event_date"
-                        start_plan_event="$event_date"
+                        echo "Plan Started: $event_received_date"
+                        start_plan_event="$event_received_date"
                         ;;
                     ".QueueDeclarativeCommand")
-                        echo "Declarative Command Queued: $event_date"
-                        queue_declarative_command="$event_date"
+                        echo "Declarative Command Queued: $event_sent_date"
+                        queue_declarative_command="$event_sent_date"
                         ;;
                     ".DDMPlanScheduledEvent")
-                        echo "DDM Plan Scheduled: $event_date"
-                        ddm_plan_scheduled_event="$event_date"
+                        echo "DDM Plan Scheduled: $event_received_date"
+                        ddm_plan_scheduled_event="$event_received_date"
                         ;;
                     ".PlanRejectedEvent")
-                        echo "Plan Rejected: $event_date"
-                        plan_rejected_event="$event_date"
+                        echo "Plan Rejected: $event_received_date"
+                        plan_rejected_event="$event_received_date"
+                        ;;
+                    *"Event")
+                        echo "Event Type $event_type: $event_received_date"
+                        ;;
+                    *"Command")
+                        echo "Command Type $event_type: $event_sent_date"
                         ;;
                     *)
-                        echo "Event Type $event_type: $event_date"
+                        echo "Unknown Event Type: $event_type"
                         ;;
                 esac
             done
