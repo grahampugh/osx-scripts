@@ -25,7 +25,7 @@ Options:
     -d, --device-type
                             Specify the device type to create a plan for. Options are COMPUTER, MOBILE_DEVICE, or APPLE_TV.
                             Default is COMPUTER.
-    -g, --group             Specify the group ID to create a plan for. 
+    -g, --group             Specify the computer or mobile device group name to create a plan for. 
                             Required for creating a plan.
     -v, --version-type
                             Specify the version type for the plan. Options are LATEST_MAJOR, LATEST_MINOR, or SPECIFIC_VERSION.
@@ -294,7 +294,7 @@ create_plan() {
     args+=('{
         "group": {
             "objectType": "'"$device_type"'_GROUP",
-            "groupId": "'"$group"'"
+            "groupId": "'"$group_id"'"
         },
         "config": {
             "updateAction": "DOWNLOAD_INSTALL_SCHEDULE",
@@ -363,6 +363,61 @@ toggle_software_update_feature() {
         echo "Request failed."
         exit 1
     fi
+}
+
+get_list_of_computer_groups() {
+    # get a list of computer groups from the JSS
+    # now run the command and output the results to a file
+    endpoint="/api/v1/computer-groups"
+    "$jamfapi" --path "$endpoint" "${args[@]}" > "$temp_file"
+
+    # create a variable containing the json output from $curl_output_file
+    computer_group_results=$(/usr/bin/jq -s '[.[].results[]]' "$temp_file")
+    cp "$temp_file" > /tmp/computer_group_results.txt # TEMP
+    echo "$computer_group_results" > /tmp/computer_group_results.json # TEMP
+}
+
+get_list_of_mobile_device_groups() {
+    # get a list of mobile device groups from the JSS
+    # now run the command and output the results to a file
+    endpoint="/api/v1/mobile-device-groups"
+    "$jamfapi" --path "$endpoint" "${args[@]}" > "$temp_file"
+
+    # create a variable containing the json output from $curl_output_file
+    mobile_device_group_results=$(/usr/bin/jq -s '[.[].results[]]' "$temp_file")
+    echo "$mobile_device_group_results" > /tmp/mobile_device_group_results.json # TEMP
+}
+
+get_computer_group_id_from_name() {
+    # get the computer group ID from the name
+    local group_name="$1"
+    if [[ -z "$group_name" ]]; then
+        echo "No group name provided."
+        return 1
+    fi
+    get_list_of_computer_groups
+    group_id=$(jq -r --arg name "$group_name" '.[] | select(.name == $name) | .id' <<< "$computer_group_results" | head -n 1)
+    if [[ -z "$group_id" ]]; then
+        echo "No computer group found with name: $group_name"
+        exit 1
+    fi
+    echo "Group ID: $group_id"
+}
+
+get_mobile_device_group_id_from_name() {
+    # get the mobile device group ID from the name
+    local group_name="$1"
+    if [[ -z "$group_name" ]]; then
+        echo "No group name provided."
+        return 1
+    fi
+    get_list_of_mobile_device_groups
+    group_id=$(jq -r --arg name "$group_name" '.[] | select(.name == $name) | .id' <<< "$mobile_device_group_results" | head -n 1)
+    if [[ -z "$group_id" ]]; then
+        echo "No mobile device group found with name: $group_name"
+        exit 1
+    fi
+    echo "Group ID: $group_id"
 }
 
 are_you_sure() {
@@ -498,6 +553,7 @@ if [[ "$option" == "create" ]]; then
         echo "Group is required to create a plan."
         exit 1
     fi
+
     if [[ "$version_type" != "LATEST_MAJOR" && "$version_type" != "LATEST_MINOR" && "$version_type" != "SPECIFIC_VERSION" ]]; then
         echo "Invalid version type specified. Please use 'LATEST_MAJOR', 'LATEST_MINOR', or 'SPECIFIC_VERSION'."
         exit 1
@@ -510,6 +566,13 @@ if [[ "$option" == "create" ]]; then
         else
             specific_version="NO_SPECIFIC_VERSION"
         fi
+    fi
+
+    # get group ID from name
+    if [[ "$device_type" == "COMPUTER" ]]; then
+        get_computer_group_id_from_name "$group"
+    else
+        get_mobile_device_group_id_from_name "$group"
     fi
 
     # set force install local datetime (default is 7 days from now)
