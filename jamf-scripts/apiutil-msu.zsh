@@ -17,16 +17,29 @@ $DOCSTRING
 
 Usage: apiutil-msu.zsh [--target TARGETNAME] [-p|--plan] [-s|--status] [--dir DIRECTORY]
 Options:
-    -t, --target    Specify a target server. Must be a valid entry in your apiutil config.
-                    Not required if only one server has been configured in API Utility.
-    -p, --plan      Fetch MSU plans.
-    -o, --open      Open the output CSV file in the default application.
-    -e, --event     Include event details in the output CSV file.
-                    This will add additional columns for plan events.
-    -s, --status    Fetch MSU update statuses.
-    -d, --dir       Specify a directory to save the output CSV file. Default is /Users/Shared/APIUtilScripts/MSUPlanStatus.
+    -t, --target             Specify a target server. Must be a valid entry in your apiutil config.
+                             Not required if only one server has been configured in API Utility.
+    -c, --create             Create a new MSU plan. Requires -g, -v, and -f options. 
+                             Note: Only a scheduled install plan can be created with this script.
+    -d, --device-type
+                             Specify the device type to create a plan for. Options are COMPUTER, MOBILE_DEVICE, or APPLE_TV.
+                             Default is COMPUTER.
+    -g, --group              Specify the group ID to create a plan for. Required for creating a plan.
+    -v, --version-type
+                             Specify the version type for the plan. Options are LATEST_MAJOR, LATEST_MINOR, or SPECIFIC_VERSION.
+    -sv, --specific-version
+                             Specify the specific version for the plan. Required if version type is SPECIFIC_VERSION.
+    -i, --days-until-force-install
+                             Specify the number of days until the force install local date/time. Default is 7 days from now.
+                             This will be used to schedule the install.
+    -p, --plan               Fetch MSU plans.
+    -o, --open               Open the output CSV file in the default application.
+    -e, --events             Include event details in the output CSV file.
+                             This will add additional columns for plan events.
+    -s, --status             Fetch MSU update statuses.
+    -d, --dir                Specify a directory to save the output CSV file. Default is /Users/Shared/APIUtilScripts/MSUPlanStatus.
 
-    Note that only one of -p or -s can be used at a time.
+    Note that only one of -c, -p or -s can be used at a time.
 "
 }
 
@@ -263,6 +276,62 @@ process_status_output() {
     echo "   [msu_statuses] CSV file outputted to: $csv_dir/$csv_file_name"
 }
 
+create_plan() {
+    # create a plan for the MSU updates
+    # this is a placeholder function, as the actual plan creation is not implemented in this script
+    echo "Creating MSU plan..."
+
+    # to create a plan we need to supply the following parameters:
+    # - target group
+    # - update action, which for this script will always be "DOWNLOAD_INSTALL_SCHEDULE"
+    # - version type, which can be "LATEST_MAJOR", "LATEST_MINOR" or "SPECIFIC_VERSION"
+    # - specific version, which is only required if version type is "SPECIFIC_VERSION"
+    # - Force Install Local DateTime, which is used to schedule the install
+    # The data is composed of JSON as follows:
+    # {
+    #   "group": {
+    #     "objectType": "COMPUTER_GROUP",
+    #     "groupId": "10"
+    #   },
+    #   "config": {
+    #     "updateAction": "DOWNLOAD_INSTALL_SCHEDULE",
+    #     "versionType": "SPECIFIC_VERSION",
+    #     "specificVersion": "15.5"
+    #   }
+    # }
+    # The required inputs are therefore the group ID, the version type, the specific version if version type is "SPECIFIC_VERSION", and the Force Install Local DateTime.
+    # now run the command and output the results to a file
+    device_type=$(tr '[:lower:]' '[:upper:]' <<< "$device_type")
+    endpoint="/api/v1/managed-software-updates/plans/group"
+    args+=("--method" "POST")
+    args+=("--data")
+    args+=('{
+        "group": {
+            "objectType": "'"$device_type"'_GROUP",
+            "groupId": "'"$group"'"
+        },
+        "config": {
+            "updateAction": "DOWNLOAD_INSTALL_SCHEDULE",
+            "versionType": "'"$version_type"'",
+            "specificVersion": "'"$specific_version"'",
+            "forceInstallLocalDateTime": "'"$force_install_local_datetime"'"
+        }
+    }'
+    )
+
+    # show args
+    echo "Creating plan with the following parameters:"
+    echo "${args[*]}" # TEMP
+
+    # check if the plan was created successfully
+    if "$jamfapi" --path "$endpoint" "${args[@]}"; then
+        echo "Plan created successfully."
+    else
+        echo "Failed to create plan. Please check the parameters and try again."
+        exit 1
+    fi
+}
+
 ## Main Body
 
 # check if apiutil is installed
@@ -288,6 +357,29 @@ while test $# -gt 0 ; do
             shift
             target="$1"
             ;;
+        -c|--create)
+            option="create"
+            ;;
+        -d|--device-type)
+            shift
+            device_type="$1"
+            ;;
+        -g|--group)
+            shift
+            group="$1"
+            ;;
+        -v|--version-type)
+            shift
+            version_type="$1"
+            ;;
+        -sv|--specific-version)
+            shift
+            specific_version="$1"
+            ;;
+        -i|--days-until-force-install)
+            shift
+            days_until_force_install="$1"
+            ;;
         -p|plan)
             option="plan"
             ;;
@@ -297,7 +389,7 @@ while test $# -gt 0 ; do
         -o|--open)
             open_csv=true
             ;;
-        -e|--event)
+        -e|--events)
             events="true"
             ;;
         -d|--dir)
@@ -317,14 +409,53 @@ if [[ "$target" ]]; then
     args+=("--target" "$target")
 fi
 
-get_computer_list
-get_mobile_device_list
-
 if [[ -z "$option" ]]; then
-    echo "No option specified. Please use -p for plan or -s for status."
+    echo "No option specified. Please use -c to create a plan, -p for plan statuses or -s for update statuses."
     usage
     exit 1
 fi
+
+# deal with creating plans first
+if [[ "$option" == "create" ]]; then
+    echo "Creating MSU plan..."
+    if [[ "$device_type" != "COMPUTER" && "$device_type" != "MOBILE_DEVICE" && "$device_type" != "APPLE_TV" && "$device_type" != "computer" && "$device_type" != "mobile_device" && "$device_type" != "apple_tv" ]]; then
+        echo "Invalid device type specified. Please use 'COMPUTER', 'MOBILE_DEVICE', or 'APPLE_TV'."
+        exit 1
+    fi
+
+    if [[ -z "$group" ]]; then
+        echo "Group is required to create a plan."
+        exit 1
+    fi
+    if [[ "$version_type" != "LATEST_MAJOR" && "$version_type" != "LATEST_MINOR" && "$version_type" != "SPECIFIC_VERSION" ]]; then
+        echo "Invalid version type specified. Please use 'LATEST_MAJOR', 'LATEST_MINOR', or 'SPECIFIC_VERSION'."
+        exit 1
+    fi
+
+    if [[ -z "$specific_version" ]]; then
+        if [[ "$version_type" == "SPECIFIC_VERSION" ]]; then
+            echo "Specific version is required when version type is 'SPECIFIC_VERSION'."
+            exit 1
+        else
+            specific_version="NO_SPECIFIC_VERSION"
+        fi
+    fi
+
+    # set force install local datetime (default is 7 days from now)
+    if [[ -z "$days_until_force_install" ]]; then
+        # set default to 7 days from now
+        force_install_local_datetime=$(date -v+7d +"%Y-%m-%dT%H:%M:%S")
+    else
+        force_install_local_datetime=$(date -v+${days_until_force_install}d +"%Y-%m-%dT%H:%M:%S")
+    fi
+
+    # create the plan
+    create_plan
+    exit 0
+fi
+
+get_computer_list
+get_mobile_device_list
 
 if [[ "$option" == "plan" ]]; then
     echo "Fetching MSU plans..."
