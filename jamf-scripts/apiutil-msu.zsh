@@ -29,7 +29,7 @@ Options:
     -g, --group             Specify the computer or mobile device group name to create a plan for. 
                             Required for creating a plan.
     -v, --version-type
-                            Specify the version type for the plan. Options are LATEST_MAJOR, LATEST_MINOR, or SPECIFIC_VERSION.
+                            Specify the version type for the plan. Options are LATEST_ANY, LATEST_MAJOR, LATEST_MINOR, or SPECIFIC_VERSION.
     -sv, --specific-version
                             Specify the specific version for the plan. Required if version type is SPECIFIC_VERSION.
     -i, --days-until-force-install
@@ -183,7 +183,7 @@ get_event() {
             plan_rejected_event=""
             echo "Event Details:"
             # using jq to format the output
-            jq -r '.events[] | "\(.type):\(.eventReceivedEpoch):\(.eventSentEpoch)"' <<< "$event_details" | while read -r line; do
+            while read -r line; do
                 event_type=$(echo "$line" | cut -d':' -f1)
                 event_received_epoch=$(echo "$line" | cut -d':' -f2) 
                 event_sent_epoch=$(echo "$line" | cut -d':' -f3) 
@@ -234,7 +234,7 @@ get_event() {
                         echo "Unknown Event Type: $event_type"
                         ;;
                 esac
-            done
+            done < <(jq -r '.events[] | "\(.type):\(.eventReceivedEpoch):\(.eventSentEpoch)"' <<< "$event_details")
         fi
     else
         echo "No event found with UUID: $event"
@@ -570,8 +570,8 @@ if [[ "$option" == "create" ]]; then
         exit 1
     fi
 
-    if [[ "$version_type" != "LATEST_MAJOR" && "$version_type" != "LATEST_MINOR" && "$version_type" != "SPECIFIC_VERSION" ]]; then
-        echo "Invalid version type specified. Please use 'LATEST_MAJOR', 'LATEST_MINOR', or 'SPECIFIC_VERSION'."
+    if [[ "$version_type" != "LATEST_ANY" && "$version_type" != "LATEST_MAJOR" && "$version_type" != "LATEST_MINOR" && "$version_type" != "SPECIFIC_VERSION" ]]; then
+        echo "Invalid version type specified. Please use 'LATEST_ANY', 'LATEST_MAJOR', 'LATEST_MINOR', or 'SPECIFIC_VERSION'."
         exit 1
     fi
 
