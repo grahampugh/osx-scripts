@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # A script that will take a signed mobileconfig profile
-# and create an unsigned version of it.
+# and create an unsigned version of it in the same directory.
 # Can be used inside an Apple Shortcuts workflow or run from the command line.
 
 input="$1"
