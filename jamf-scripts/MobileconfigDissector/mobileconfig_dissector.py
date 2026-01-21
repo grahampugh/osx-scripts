@@ -220,17 +220,29 @@ class MobileConfigAnalyzer:
 def main():
     """Main entry point for the mobile configuration analyzer."""
     parser = argparse.ArgumentParser(
-        description="Analyze mobile configuration profiles and extract non-default preferences"
+        description="Analyze mobile configuration profiles and extract non-default preferences",
+        epilog="Example: python3 mobileconfig_dissector.py /path/to/profile.mobileconfig",
     )
     parser.add_argument(
         "mobileconfig_path",
+        nargs="?",
         help="Path to the mobile configuration (.mobileconfig) file",
     )
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="Enable verbose output"
     )
 
+    # Show help if no arguments provided
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(0)
+
     args = parser.parse_args()
+
+    # Check if mobileconfig_path was provided
+    if not args.mobileconfig_path:
+        parser.print_help()
+        sys.exit(1)
 
     # Validate input file
     if not os.path.exists(args.mobileconfig_path):
