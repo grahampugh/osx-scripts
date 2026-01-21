@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Mobile Configuration Profile Analyzer
+Mobile Configuration Profile Dissector
 
 This script analyzes a mobile configuration profile (.mobileconfig) and extracts
 preference domain settings that differ from Apple's documented defaults.
 It creates separate PLIST files for each domain containing only non-default values.
 
 Usage:
-    python3 mobileconfig_analyzer.py <path_to_mobileconfig_file>
+    python3 mobileconfig_dissector.py <path_to_mobileconfig_file>
 
 Requirements:
     - plistlib (built-in)

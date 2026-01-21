@@ -55,10 +55,10 @@ get_computer_list() {
     # get a list of computers from the JSS
     # now run the command and output the results to a file
     endpoint="/api/preview/computers"
-    "$jamfapi" --path "$endpoint" "${args[@]}" > "$temp_file"
+    "$jamfapi" --path "$endpoint" "${args[@]}" 2>&1 | grep -v '^\[retrieve\]' > "$temp_file"
 
     # create a variable containing the json output from $curl_output_file
-    computer_results=$(/usr/bin/jq -s '[.[].results[]]' "$temp_file")
+    computer_results=$(/usr/bin/jq -s '[.[].results[]]' "$temp_file" 2>/dev/null)
     echo "$computer_results" > /tmp/computer_results.json # TEMP
 }
 
@@ -66,10 +66,10 @@ get_mobile_device_list() {
     # get a list of mobile devices from the JSS
     # now run the command and output the results to a file
     endpoint="/api/v2/mobile-devices"
-    "$jamfapi" --path "$endpoint" "${args[@]}" > "$temp_file"
+    "$jamfapi" --path "$endpoint" "${args[@]}" 2>&1 | grep -v '^\[retrieve\]' > "$temp_file"
 
     # create a variable containing the json output from $curl_output_file
-    mobile_device_results=$(/usr/bin/jq -s '[.[].results[]]' "$temp_file")
+    mobile_device_results=$(/usr/bin/jq -s '[.[].results[]]' "$temp_file" 2>/dev/null)
     echo "$mobile_device_results" > /tmp/device_results.json # TEMP
 }
 
@@ -104,26 +104,26 @@ process_plan_output() {
     else
         echo "Device ID,Device Name,Device Type,Device Model,Plan UUID,Update Action,Version Type,Specific Version,Max Deferrals,Force Install Local DateTime,State,Error Reasons" > "$csv_dir/$csv_file_name"
     fi
-    /usr/bin/jq -c '.results[]' "$temp_file" | while IFS= read -r item; do
-        device_id=$(echo "$item" | /usr/bin/jq -r '.device.deviceId')
-        object_type=$(echo "$item" | /usr/bin/jq -r '.device.objectType')
-        plan_uuid=$(echo "$item" | /usr/bin/jq -r '.planUuid')
-        update_action=$(echo "$item" | /usr/bin/jq -r '.updateAction')
-        version_type=$(echo "$item" | /usr/bin/jq -r '.versionType')
-        specific_version=$(echo "$item" | /usr/bin/jq -r '.specificVersion')
-        max_deferrals=$(echo "$item" | /usr/bin/jq -r '.maxDeferrals')
-        force_install_local_datetime=$(echo "$item" | /usr/bin/jq -r '.forceInstallLocalDateTime')
-        state=$(echo "$item" | /usr/bin/jq -r '.status.state')
-        error_reasons=$(echo "$item" | /usr/bin/jq -r '.status.errorReasons | join("|")')
+    /usr/bin/jq -c '.results[]' "$temp_file" 2>/dev/null | while IFS= read -r item; do
+        device_id=$(echo "$item" | /usr/bin/jq -r '.device.deviceId' 2>/dev/null)
+        object_type=$(echo "$item" | /usr/bin/jq -r '.device.objectType' 2>/dev/null)
+        plan_uuid=$(echo "$item" | /usr/bin/jq -r '.planUuid' 2>/dev/null)
+        update_action=$(echo "$item" | /usr/bin/jq -r '.updateAction' 2>/dev/null)
+        version_type=$(echo "$item" | /usr/bin/jq -r '.versionType' 2>/dev/null)
+        specific_version=$(echo "$item" | /usr/bin/jq -r '.specificVersion' 2>/dev/null)
+        max_deferrals=$(echo "$item" | /usr/bin/jq -r '.maxDeferrals' 2>/dev/null)
+        force_install_local_datetime=$(echo "$item" | /usr/bin/jq -r '.forceInstallLocalDateTime' 2>/dev/null)
+        state=$(echo "$item" | /usr/bin/jq -r '.status.state' 2>/dev/null)
+        error_reasons=$(echo "$item" | /usr/bin/jq -r '.status.errorReasons | join("|")' 2>/dev/null)
 
         if [[ "$object_type" == "COMPUTER" ]]; then
             echo "Computer ID: $device_id"
-            device_name=$(jq -r --arg id "$device_id" '.[] | select(.id == $id) | .name' <<< "$computer_results")
+            device_name=$(jq -r --arg id "$device_id" '.[] | select(.id == $id) | .name' <<< "$computer_results" 2>/dev/null)
             echo "Computer Name: $device_name"
         elif [[ "$object_type" == "MOBILE_DEVICE" ]]; then
             echo "Device ID: $device_id"
-            device_name=$(jq -r --arg id "$device_id" '.[] | select(.id == $id) | .name' <<< "$mobile_device_results")
-            device_model=$(jq -r --arg id "$device_id" '.[] | select(.id == $id) | .model' <<< "$mobile_device_results")
+            device_name=$(jq -r --arg id "$device_id" '.[] | select(.id == $id) | .name' <<< "$mobile_device_results" 2>/dev/null)
+            device_model=$(jq -r --arg id "$device_id" '.[] | select(.id == $id) | .model' <<< "$mobile_device_results" 2>/dev/null)
             echo "Device Name: $device_name"
             echo "Device Model: $device_model"
         else
@@ -155,8 +155,7 @@ process_plan_output() {
         fi
     done
 
-    echo "CSV file outputted to: $csv_dir/$csv_file_name"
-    echo "CSV file outputted to: $csv_dir/$csv_file_name" > "$log_file"
+    echo "CSV file outputted to: $csv_dir/$csv_file_name" | tee "$log_file"
 }
 
 get_event() {
@@ -166,11 +165,11 @@ get_event() {
         echo "Searching for event UUID: $event"
         # now run the command and output the results to a file
         endpoint="/api/v1/managed-software-updates/plans"
-        "$jamfapi" --path "$endpoint/$event/events" "${args[@]}" > "$temp_file"
+        "$jamfapi" --path "$endpoint/$event/events" "${args[@]}" 2>&1 | grep -v '^\[retrieve\]' > "$temp_file"
     fi
     if [[ -s "$temp_file" ]]; then
         # parse the event details from the temp_file
-        event_details=$(jq -r .events "$temp_file")
+        event_details=$(jq -r .events "$temp_file" 2>/dev/null)
         if [[ -n "$event_details" ]]; then
             # echo "Event Store: $event_details" # TEMP
             # using jq, parse the event details to get the types and their associated eventReceivedEpoch
@@ -234,7 +233,7 @@ get_event() {
                         echo "Unknown Event Type: $event_type"
                         ;;
                 esac
-            done < <(jq -r '.events[] | "\(.type):\(.eventReceivedEpoch):\(.eventSentEpoch)"' <<< "$event_details")
+            done < <(jq -r '.events[] | "\(.type):\(.eventReceivedEpoch):\(.eventSentEpoch)"' <<< "$event_details" 2>/dev/null)
         fi
     else
         echo "No event found with UUID: $event"
@@ -247,24 +246,24 @@ process_status_output() {
 
     # compile the results into a CSV file
     echo "Device ID,Device Name,Device Type,Device Model,Downloaded,Percent Complete,Product Key,Status,Max Deferrals,Next Scheduled Install" > "$csv_dir/$csv_file_name"
-    /usr/bin/jq -c '.results[]' "$temp_file" | while IFS= read -r item; do
-        device_id=$(echo "$item" | /usr/bin/jq -r '.device.deviceId')
-        object_type=$(echo "$item" | /usr/bin/jq -r '.device.objectType')
-        max_deferrals=$(echo "$item" | /usr/bin/jq -r '.maxDeferrals')
-        next_scheduled_install=$(echo "$item" | /usr/bin/jq -r '.nextScheduledInstall')
-        downloaded=$(echo "$item" | /usr/bin/jq -r '.downloaded')
-        percent_complete=$(echo "$item" | /usr/bin/jq -r '.downloadPercentComplete')
-        product_key=$(echo "$item" | /usr/bin/jq -r '.productKey')
-        status=$(echo "$item" | /usr/bin/jq -r '.status')
+    /usr/bin/jq -c '.results[]' "$temp_file" 2>/dev/null | while IFS= read -r item; do
+        device_id=$(echo "$item" | /usr/bin/jq -r '.device.deviceId' 2>/dev/null)
+        object_type=$(echo "$item" | /usr/bin/jq -r '.device.objectType' 2>/dev/null)
+        max_deferrals=$(echo "$item" | /usr/bin/jq -r '.maxDeferrals' 2>/dev/null)
+        next_scheduled_install=$(echo "$item" | /usr/bin/jq -r '.nextScheduledInstall' 2>/dev/null)
+        downloaded=$(echo "$item" | /usr/bin/jq -r '.downloaded' 2>/dev/null)
+        percent_complete=$(echo "$item" | /usr/bin/jq -r '.downloadPercentComplete' 2>/dev/null)
+        product_key=$(echo "$item" | /usr/bin/jq -r '.productKey' 2>/dev/null)
+        status=$(echo "$item" | /usr/bin/jq -r '.status' 2>/dev/null)
     
         if [[ "$object_type" == "COMPUTER" ]]; then
             echo "Computer ID: $device_id"
-            device_name=$(jq -r --arg id "$device_id" '.[] | select(.id == $id) | .name' <<< "$computer_results")
+            device_name=$(jq -r --arg id "$device_id" '.[] | select(.id == $id) | .name' <<< "$computer_results" 2>/dev/null)
             echo "Computer Name: $device_name"
         elif [[ "$object_type" == "MOBILE_DEVICE" ]]; then
             echo "Device ID: $device_id"
-            device_name=$(jq -r --arg id "$device_id" '.[] | select(.id == $id) | .name' <<< "$mobile_device_results")
-            device_model=$(jq -r --arg id "$device_id" '.[] | select(.id == $id) | .model' <<< "$mobile_device_results")
+            device_name=$(jq -r --arg id "$device_id" '.[] | select(.id == $id) | .name' <<< "$mobile_device_results" 2>/dev/null)
+            device_model=$(jq -r --arg id "$device_id" '.[] | select(.id == $id) | .model' <<< "$mobile_device_results" 2>/dev/null)
             echo "Device Name: $device_name"
             echo "Device Model: $device_model"
         else
@@ -282,8 +281,7 @@ process_status_output() {
         # append the output to a csv file
         echo "$device_id,$device_name,$(tr '[:upper:]' '[:lower:]' <<< "$object_type"),$device_model,$downloaded,$percent_complete,$product_key,$status,$max_deferrals,$next_scheduled_install" >> "$csv_dir/$csv_file_name"
     done
-    echo "CSV file outputted to: $csv_dir/$csv_file_name"
-    echo "CSV file outputted to: $csv_dir/$csv_file_name" > "$log_file"
+    echo "CSV file outputted to: $csv_dir/$csv_file_name" | tee "$log_file"
 }
 
 create_plan() {
@@ -314,20 +312,23 @@ create_plan() {
 
     # check if the plan was created successfully
     if "$jamfapi" --path "$endpoint" "${args[@]}"; then
-        echo "Plan created successfully."
-        echo "Plan created successfully." > "$log_file"
+        echo "Plan created successfully." | tee "$log_file"
     else
-        echo "Failed to create plan. Please check the parameters and try again."
-        echo "Failed to create plan. Please check the parameters and try again." > "$log_file"
+        echo "Failed to create plan. Please check the parameters and try again." | tee "$log_file"
         exit 1
     fi
 }
 
 get_software_update_feature_status() {
     # grab current value
-    endpoint="api/v1/managed-software-updates/plans/feature-toggle"
-    "$jamfapi" --path "$endpoint" "${args[@]}" > "$temp_file"
-    toggle_value=$(/usr/bin/plutil -extract toggle raw "$temp_file" 2>/dev/null)
+    local temp_toggle_file="/tmp/jamf_api_toggle.txt"
+    local temp_status_file="/tmp/jamf_api_status.txt"
+    
+    endpoint="/api/v1/managed-software-updates/plans/feature-toggle"
+    "$jamfapi" --path "$endpoint" "${args[@]}" 2>&1 | grep -v '^\[retrieve\]' > "$temp_toggle_file"
+    
+    toggle_value=$(jq -r '.toggle' "$temp_toggle_file" 2>/dev/null)
+    
     toggle_set_value="true"
     if [[ $toggle_value == "true" ]]; then 
         toggle_set_value="false"
@@ -337,11 +338,11 @@ get_software_update_feature_status() {
     echo "Current toggle value is '$toggle_value'." > "$log_file"
 
     # grab current background status
-    endpoint="api/v1/managed-software-updates/plans/feature-toggle/status"
-    "$jamfapi" --path "$endpoint" "${args[@]}" > "$temp_file"
+    endpoint="/api/v1/managed-software-updates/plans/feature-toggle/status"
+    "$jamfapi" --path "$endpoint" "${args[@]}" 2>&1 | grep -v '^\[retrieve\]' > "$temp_status_file"
 
-    toggle_on_value=$(/usr/bin/plutil -extract toggleOn.formattedPercentComplete raw "$temp_file" 2>/dev/null)
-    toggle_off_value=$(/usr/bin/plutil -extract toggleOff.formattedPercentComplete raw "$temp_file" 2>/dev/null)
+    toggle_on_value=$(jq -r '.toggleOn.formattedPercentComplete' "$temp_status_file" 2>/dev/null)
+    toggle_off_value=$(jq -r '.toggleOff.formattedPercentComplete' "$temp_status_file" 2>/dev/null)
 
     echo "Toggle on status: '$toggle_on_value'..."
     echo "Toggle off status: '$toggle_off_value'..."
@@ -357,18 +358,16 @@ toggle_software_update_feature() {
     echo
 
     # toggle software update feature
-    endpoint="api/v1/managed-software-updates/plans/feature-toggle"
+    endpoint="/api/v1/managed-software-updates/plans/feature-toggle"
     args+=("--method" "PUT")
     args+=("--data")
-    args+=('{"toggle": "'$toggle_set_value'"}'
+    args+=('{"toggle": '$toggle_set_value'}'
     )
     # check if the plan was created successfully
     if "$jamfapi" --path "$endpoint" "${args[@]}"; then
-        echo "Request sent successfully. Toggle is now set to '$toggle_set_value'"
-        echo "Request sent successfully. Toggle is now set to '$toggle_set_value'" > "$log_file"
+        echo "Request sent successfully. Toggle is now set to '$toggle_set_value'" | tee "$log_file"
     else
-        echo "Toggle request failed."
-        echo "Toggle request failed." > "$log_file"
+        echo "Toggle request failed." | tee "$log_file"
         exit 1
     fi
 }
@@ -377,23 +376,23 @@ get_list_of_computer_groups() {
     # get a list of computer groups from the JSS
     # now run the command and output the results to a file
     endpoint="/api/v1/computer-groups"
-    "$jamfapi" --path "$endpoint" "${args[@]}" > "$temp_file"
+    "$jamfapi" --path "$endpoint" "${args[@]}" 2>&1 | grep -v '^\[retrieve\]' > "$temp_file"
 
     # create a variable containing the json output from $curl_output_file
-    computer_group_results=$(/usr/bin/jq -s '[.[].results[]]' "$temp_file")
-    cp "$temp_file" /tmp/computer_group_results.txt # TEMP
-    echo "$computer_group_results" > /tmp/computer_group_results.json # TEMP
+    computer_group_results=$(/usr/bin/jq -s '[.[].results[]]' "$temp_file" 2>/dev/null)
+    # cp "$temp_file" /tmp/computer_group_results.txt # TEMP
+    echo "$computer_group_results" | tee /tmp/computer_group_results.json # TEMP
 }
 
 get_list_of_mobile_device_groups() {
     # get a list of mobile device groups from the JSS
     # now run the command and output the results to a file
     endpoint="/api/v1/mobile-device-groups"
-    "$jamfapi" --path "$endpoint" "${args[@]}" > "$temp_file"
+    "$jamfapi" --path "$endpoint" "${args[@]}" 2>&1 | grep -v '^\[retrieve\]' > "$temp_file"
 
     # create a variable containing the json output from $curl_output_file
-    mobile_device_group_results=$(/usr/bin/jq -s '[.[].results[]]' "$temp_file")
-    echo "$mobile_device_group_results" > /tmp/mobile_device_group_results.json # TEMP
+    mobile_device_group_results=$(/usr/bin/jq -s '[.[].results[]]' "$temp_file" 2>/dev/null)
+    echo "$mobile_device_group_results" | tee /tmp/mobile_device_group_results.json # TEMP
 }
 
 get_computer_group_id_from_name() {
@@ -404,10 +403,9 @@ get_computer_group_id_from_name() {
         return 1
     fi
     get_list_of_computer_groups
-    group_id=$(jq -r --arg name "$group_name" '.[] | select(.name == $name) | .id' <<< "$computer_group_results" | head -n 1)
+    group_id=$(jq -r --arg name "$group_name" '.[] | select(.name == $name) | .id' <<< "$computer_group_results" 2>/dev/null | head -n 1)
     if [[ -z "$group_id" ]]; then
-        echo "No computer group found with name: $group_name"
-        echo "No computer group found with name: $group_name" > "$log_file"
+        echo "No computer group found with name: $group_name" | tee "$log_file"
         exit 1
     fi
     echo "Group ID: $group_id"
@@ -421,10 +419,9 @@ get_mobile_device_group_id_from_name() {
         return 1
     fi
     get_list_of_mobile_device_groups
-    group_id=$(jq -r --arg name "$group_name" '.[] | select(.name == $name) | .id' <<< "$mobile_device_group_results" | head -n 1)
+    group_id=$(jq -r --arg name "$group_name" '.[] | select(.name == $name) | .id' <<< "$mobile_device_group_results" 2>/dev/null | head -n 1)
     if [[ -z "$group_id" ]]; then
-        echo "No mobile device group found with name: $group_name"
-        echo "No mobile device group found with name: $group_name" > "$log_file"
+        echo "No mobile device group found with name: $group_name" | tee "$log_file"
         exit 1
     fi
     echo "Group ID: $group_id"
@@ -461,8 +458,7 @@ if ! command -v "$jamfapi" &> /dev/null; then
 fi
 # check if jq is installed
 if ! command -v jq &> /dev/null; then
-    echo "jq is not installed. Please run this script on macOS 15 or greater, or manually install jq."
-    echo "jq is not installed. Please run this script on macOS 15 or greater, or manually install jq." > "$log_file"
+    echo "jq is not installed. Please run this script on macOS 15 or greater, or manually install jq." | tee "$log_file"
     exit 1
 fi
 
@@ -557,6 +553,12 @@ if [[ "$option" == "toggle" ]]; then
     exit 0
 fi
 
+# for the other options, do not proceed if the toggle is in progress or false
+if [[ "$toggle_value" == "false" || "$toggle_value" == "in_progress" ]]; then
+    echo "The action could not be performed because the Software Update toggle is disabled or in progress. Please run with --toggle to enable it first." | tee "$log_file"
+    exit 1
+fi
+
 # deal with creating plans next
 if [[ "$option" == "create" ]]; then
     echo "Creating MSU plan..."
@@ -577,8 +579,7 @@ if [[ "$option" == "create" ]]; then
 
     if [[ -z "$specific_version" ]]; then
         if [[ "$version_type" == "SPECIFIC_VERSION" ]]; then
-            echo "Specific version is required when version type is 'SPECIFIC_VERSION'."
-            echo "Specific version is required when version type is 'SPECIFIC_VERSION'." > "$log_file"
+            echo "Specific version is required when version type is 'SPECIFIC_VERSION'." | tee "$log_file"
             exit 1
         else
             specific_version="NO_SPECIFIC_VERSION"
@@ -620,25 +621,22 @@ else
     exit 1
 fi
 # now run the command and output the results to a file
-if "$jamfapi" --path "$endpoint" "${args[@]}" > "$temp_file"; then
+if "$jamfapi" --path "$endpoint" "${args[@]}" 2>&1 | grep -v '^\[retrieve\]' > "$temp_file"; then
     # now process the output
     if [[ ! -s "$temp_file" || "$(cat "$temp_file")" == "no objects" ]]; then
         echo "No results found or the output file is empty."
         echo "No results found or the output file is empty." > "$log_file"
         exit 1
     elif [[ $toggle_value == "false" ]]; then
-        echo "The action could not be performed because the Software Update toggle is disabled "
-        echo "The action could not be performed because the Software Update toggle is disabled." > "$log_file"
+        echo "The action could not be performed because the Software Update toggle is disabled " | tee "$log_file"
         exit 1
     fi
 else
     if [[ $toggle_value == "false" ]]; then
-        echo "The action could not be performed because the Software Update toggle is disabled "
-        echo "The action could not be performed because the Software Update toggle is disabled." > "$log_file"
+        echo "The action could not be performed because the Software Update toggle is disabled " | tee "$log_file"
         exit 1
     else
-        echo "There was an error performing the action."
-        echo "There was an error performing the action." > "$log_file"
+        echo "There was an error performing the action." | tee "$log_file"
         exit 1
     fi
 fi

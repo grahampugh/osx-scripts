@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 DOCSTRING=<<DOC
-jamf-mdm-commands.zsh
+apiutil-mdm-commands.zsh
 
 A script for running various MDM commands in Jamf Pro. Currently supports:
 - Redeploying the MDM profile
@@ -18,18 +18,22 @@ usage() {
     echo "
 $DOCSTRING
 
-Usage: jamf-mdm-commands.zsh --jss SERVERURL --user USERNAME --pass PASSWORD --id ID
-Options:
+Usage: apiutil-mdm-commands.zsh --target SERVERURL --id ID
+
+Additional options:
     --redeploy      Redeploy the MDM profile
     --recovery      Set the recovery lock password - supplied with:
                     --recovery-lock-password PASSWORD
+                    --random-lock-password   (to set a random password)
+                    --clear-recovery-lock-password (to clear the recovery lock password)
 
-https:// is optional, it will be added if absent.
-
-SERVERURL, ID, USERNAME, PASSWORD and the option will be asked for if not supplied.
+SERVERURL, ID and the option will be asked for if not supplied.
 Recovery lock password will be random unless set with --recovery-lock-password.
-You can clear the recovery lock password with --clear-recovery-lock-password
-"
+
+Examples:
+    apiutil-mdm-commands.zsh --target https://jamf.example.com --id 42 --redeploy
+    apiutil-mdm-commands.zsh --target https://jamf.example.com --id 42 --recovery --random-lock-password
+    apiutil-mdm-commands.zsh --target https://jamf.example.com --id 42 --recovery --clear-recovery-lock-password"
 }
 
 check_environment() {
