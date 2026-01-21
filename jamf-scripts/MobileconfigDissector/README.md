@@ -8,9 +8,7 @@ It creates separate PLIST files for each domain containing only non-default valu
 
 Usage:
 
-```
-python3 mobileconfig_dissector.py <path_to_mobileconfig_file>
-```
+    python3 mobileconfig_dissector.py <path_to_mobileconfig_file>
 
 Requirements:
 
@@ -24,6 +22,4 @@ This script was created with help from the Claude AI assistant.
 
 For help:
 
-```
-python3 mobileconfig_dissector.py --help
-```
+    python3 mobileconfig_dissector.py --help
