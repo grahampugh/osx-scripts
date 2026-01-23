@@ -90,6 +90,14 @@ awk '
 }
 ' "$POSTINSTALL_PATH" > "$POSTINSTALL_PATH.tmp" && mv "$POSTINSTALL_PATH.tmp" "$POSTINSTALL_PATH"
 
+# show current ownership and permissions for postinstall script
+echo "Postinstall script ownership and permissions before change:"
+ls -l "$POSTINSTALL_PATH"
+
+# Ensure correct ownership and permissions for postinstall script
+# chown root:wheel "$POSTINSTALL_PATH"
+chmod 755 "$POSTINSTALL_PATH"
+
 echo "Recompressing package..."
 pkgutil --flatten JamfConnectPkg JamfConnectPatched.pkg
 
