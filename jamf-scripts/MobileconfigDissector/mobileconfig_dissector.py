@@ -20,6 +20,7 @@ This script was created with help from the Claude AI assistant.
 import argparse
 import os
 import plistlib
+import subprocess
 import sys
 import traceback
 from typing import Dict, Any, List, Optional
@@ -28,9 +29,13 @@ try:
     import requests
     import yaml
 except ImportError:
-    print("Error: Required packages not installed.")
-    print("Install with: pip install requests pyyaml")
-    sys.exit(1)
+    try:
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "requests", "pyyaml"]
+        )
+    except subprocess.CalledProcessError:
+        print("ERROR: Required modules 'requests' and 'pyyaml' are not installed.")
+        sys.exit(1)
 
 
 class MDMSchemaFetcher:
