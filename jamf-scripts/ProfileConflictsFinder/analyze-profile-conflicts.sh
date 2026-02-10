@@ -66,7 +66,7 @@ run_analysis() {
         --key JSS_URL="$JAMF_URL"
         --key API_USERNAME="$JAMF_USERNAME"
         --key API_PASSWORD="$JAMF_PASSWORD"
-        --key "DO_NOT_FAIL_RECIPES_WITHOUT_TRUST_INFO=true"
+        --key "FAIL_RECIPES_WITHOUT_TRUST_INFO=false"
     )
     
     echo "Downloading all profiles from $JAMF_URL..."
