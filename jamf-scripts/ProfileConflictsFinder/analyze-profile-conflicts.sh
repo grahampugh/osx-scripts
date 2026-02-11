@@ -43,7 +43,7 @@ Optional:
                                    By default, com.apple.TCC.configuration-profile-policy,
                                    com.apple.notificationsettings, and com.apple.system-extension-policy
                                    are excluded.
-      -v, --verbose                Enable verbose output from AutoPkg
+      -v[vvv]                      Enable different levels of verbose output from AutoPkg
 
 Description:
   This script downloads all configuration profiles from the specified Jamf Pro instance,
@@ -366,6 +366,7 @@ generate_csv_report() {
 # MAIN
 # --------------------------------------------------------------------------------
 
+VERBOSE="-v"
 while [[ "$#" -gt 0 ]]; do
     key="$1"
     case $key in
@@ -381,8 +382,8 @@ while [[ "$#" -gt 0 ]]; do
             shift
             JAMF_PASSWORD="$1"
             ;;
-        -v|--verbose)
-            VERBOSE=1
+        -v*)
+            VERBOSE="$1"
             ;;
         -h|--help)
             usage
@@ -405,9 +406,6 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         --tcc)
             INCLUDE_TCC=1
-            ;;
-        -v*)
-            VERBOSE="$1"
             ;;
         *)
             echo "Unknown option: $1"
