@@ -26,31 +26,32 @@ log() {
 }
 
 # Find the computer's hostname.
-readonly HOSTNAME=$( scutil --get ComputerName );
+readonly HOSTNAME
+HOSTNAME=$(scutil --get ComputerName)
 echo "### Local Administrator Check:"
 echo "Host Name        = $HOSTNAME"
 
 # Find out what the existing Allowed Administrator group is
-readonly CombinedADGroups=$( dsconfigad -show | grep "Allowed admin groups"  | awk '{print $5}' )
+readonly CombinedADGroups
+CombinedADGroups=$(dsconfigad -show | grep "Allowed admin groups"  | awk '{print $5}')
 
 # Set some arrays
 CombinedADGroupArray=()
-DomainNetBIOSNameArray=()
 ADGroupArray=()
 
 # If there's more than one Allowed Administrator group, 
 # we need to split and search through them all
 IFS=',' read -ra BIGARR <<< "$CombinedADGroups"
 for i in "${BIGARR[@]}"; do
-	# Create arrays for each variable
-	IFS='\' read -ra ADARR <<< "$i"
-	CombinedADGroupArray+=($i)
-	NetBIOSNameArray+=(${ADARR[0]})
-	ADGroupArray+=(${ADARR[1]})
-	echo ""
-	echo "AD Domain        = ${NetBIOSNameArray[${#NetBIOSNameArray[@]}-1]}"
-	echo "AD Name          = ${ADGroupArray[${#ADGroupArray[@]}-1]}"
-	echo "AD Admin Group   = ${CombinedADGroupArray[${#CombinedADGroupArray[@]}-1]}"
+    # shellcheck disable=SC2141
+    IFS=$'\\' read -ra ADARR <<< "$i"
+    CombinedADGroupArray+=("$i")
+    NetBIOSNameArray+=("${ADARR[0]}")
+    ADGroupArray+=("${ADARR[1]}")
+    echo ""
+    echo "AD Domain        = ${NetBIOSNameArray[${#NetBIOSNameArray[@]}-1]}"
+    echo "AD Name          = ${ADGroupArray[${#ADGroupArray[@]}-1]}"
+    echo "AD Admin Group   = ${CombinedADGroupArray[${#CombinedADGroupArray[@]}-1]}"
 done
 
 
@@ -65,7 +66,7 @@ CheckForNetwork
 # check for the network 6 times over a minute before abandoning
 # loopcount=0
 # while [[ "${NETWORKUP}" != "-YES-" && "$loopcount" -lt 6 ]]; do
-# 		log "Network not ready (attempt ${loopcount+1}). Trying again..."
+#         log "Network not ready (attempt ${loopcount+1}). Trying again..."
 #         sleep 10
 #         NETWORKUP=
 #         CheckForNetwork
@@ -73,8 +74,8 @@ CheckForNetwork
 # done
 
 if [ "${NETWORKUP}" != "-YES-" ]; then
-	log "### Not connected to a network. Leaving local admins alone."
-	exit 0
+    log "### Not connected to a network. Leaving local admins alone."
+    exit 0
 fi
 
 # Next, check that we are connected to AD
@@ -88,66 +89,57 @@ fi
 # We need to check each domain that we might be joined to
 domainCheck=0
 for (( c=0 ; c<=${#NetBIOSNameArray[@]}-1; c++ )); do
-	dscl "/Active Directory/${NetBIOSNameArray[$c]}/All Domains" \
-		-read /Computers/${HOSTNAME}$ &>/dev/null 
-	if [ $? -eq 0 ]; then 
-		domainCheck=1
-	fi
+    if dscl "/Active Directory/${NetBIOSNameArray[$c]}/All Domains" \
+        -read "/Computers/${HOSTNAME}"$ &>/dev/null; then
+        domainCheck=1
+    fi
 done
 
 if [ "$domainCheck" -eq 0 ]; then
-	log "### Not connected or properly bound to AD. Leaving local admins alone."
-	exit 0
+    log "### Not connected or properly bound to AD. Leaving local admins alone."
+    exit 0
 fi
 
 # OK, let's carry one, as we are connected: 
 
 # Find all the users on this computer. Ignore system users.
-dscl . list /Users | grep -v '^_.*\|daemon\|root\|nobody' | while read localUser
+dscl . list /Users | grep -v '^_.*\|daemon\|root\|nobody' | while read -r localUser
 do
-	# check if user is in the local admin group
-	IsLocalAdmin=$( \
-		dseditgroup -o checkmember -m $localUser admin \
-		| awk '{print $1}' )
-
-	# Grab the information from AD about this user
-	ADGroups=$( id ${localUser} )
-	
-	# setLocalAdmin is used to determine whether the user is: 
-	# an AD user in the admin group (Yes)
-	# an AD user not in the admin group (No)
-	# not an AD user, i.e. a local user (NotAD)
-	setLocalAdmin="No" 
-		
-	# loop through the AD groups
-	for (( c=0 ; c<=${#NetBIOSNameArray[@]}-1; c++ )); do
-		# Is this a Mobile user (not a local account)?
-		if [[ "$ADGroups" =~ "${NetBIOSNameArray[$c]}" ]]; then
-			# Is this mobile user in the correct AD local admin group?
-			shopt -s nocasematch
-			if [[ "$ADGroups" =~ "${ADGroupArray[$c]}" ]]; then
-				log "### User $localUser is member of AD group ${CombinedADGroupArray[$c]}"
-				setLocalAdmin="Yes"
-			fi
-			shopt -u nocasematch
-		else
-			setLocalAdmin="NotAD"
-		fi
-	done
-	if [[ "$setLocalAdmin" = "NotAD" ]]; then
-		log "### User $localUser is not an AD user. Nothing to change."
-	elif [[ "$setLocalAdmin" = "Yes" ]]; then
-		log "### Adding $localUser to the Admin group" 
-		/usr/sbin/dseditgroup -o edit -a $localUser -t user admin
-	else
-		log "### User $localUser is not a member of any AD groups. Setting as standard user"
-		/usr/sbin/dseditgroup -o edit -d $localUser -t user admin
-	fi
+    # Grab the information from AD about this user
+    ADGroups=$(id "$localUser")
+    
+    # setLocalAdmin is used to determine whether the user is: 
+    # an AD user in the admin group (IsADAdmin)
+    # an AD user not in the admin group (No)
+    # not an AD user, i.e. a local user (NotAD)
+    setLocalAdmin="No" 
+        
+    # loop through the AD groups
+    for (( c=0 ; c<=${#NetBIOSNameArray[@]}-1; c++ )); do
+        # Is this a Mobile user (not a local account)?
+        if [[ "$ADGroups" =~ ${NetBIOSNameArray[$c]}\\ ]]; then
+            # Is this mobile user in the correct AD local admin group?
+			result=$(dsmemberutil checkmembership -U "$localUser" -G "${ADGroupArray[$c]}")
+			if [[ "$result" == "user is a member of the group" ]]; then
+                log "### User $localUser is member of AD group ${CombinedADGroupArray[$c]}"
+                setLocalAdmin="IsADAdmin"
+            fi
+        else
+            setLocalAdmin="NotAD"
+        fi
+    done
+    if [[ "$setLocalAdmin" == "NotAD" ]]; then
+        log "### User $localUser is not an AD user. Nothing to change."
+    elif [[ "$setLocalAdmin" == "IsADAdmin" ]]; then
+        log "### Adding $localUser to the Admin group" 
+        /usr/sbin/dseditgroup -o edit -a "$localUser" -t user admin
+    else
+        log "### User $localUser is not a member of any AD groups. Setting as standard user"
+        /usr/sbin/dseditgroup -o edit -d "$localUser" -t user admin
+    fi
 done
 
 echo ""
-
-exit 0
 
 
 
